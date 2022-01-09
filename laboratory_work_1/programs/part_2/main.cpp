@@ -13,10 +13,9 @@ DWORD PreparingCopyPaste(string localOldFilePath, string localNewFilePath, unsig
 DWORD LocalCopyPaste (HANDLE in, HANDLE out, unsigned long long fileSize, unsigned long long bs, unsigned long long localOverlappedIOSize);
 DWORD LocalDriveSectorSize ();
 DWORD LocalDriveSectorSize (DWORD &localSectorsPerCluster);
-unsigned long long DWORDS2ULL(DWORD l, DWORD h);
-void ULL2DWORDS(unsigned long long value, DWORD* l, DWORD* h);
+//unsigned long long DWORDS2ULL(DWORD l, DWORD h);
+//void ULL2DWORDS(unsigned long long value, DWORD* l, DWORD* h);
 void CALLBACK CompletionRoutine(DWORD dwErrorCode, DWORD dwNumberOfBytesTransfered, LPOVERLAPPED lpOverlapped);
-//unsigned long long getOverlappedNum(LPOVERLAPPED lpOverlapped);
 
 //Certutil -hashfile file
 
@@ -133,7 +132,7 @@ DWORD PreparingCopyPaste(string localOldFilePath, string localNewFilePath, unsig
     HANDLE localNewFileHandle = CreateFileA(localNewFilePath.c_str(), GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_FLAG_OVERLAPPED | FILE_FLAG_NO_BUFFERING, NULL); // new file path
     DWORD lpFileSizeHigh; // lpdword filesize high
     DWORD getFileSize;
-    unsigned long long fileSize = DWORDS2ULL(getFileSize, lpFileSizeHigh);
+    unsigned long long fileSize;
 
     if (localOldFileHandle == NULL || localOldFileHandle == INVALID_HANDLE_VALUE || localNewFileHandle == NULL || localNewFileHandle == INVALID_HANDLE_VALUE)
     {
@@ -143,7 +142,8 @@ DWORD PreparingCopyPaste(string localOldFilePath, string localNewFilePath, unsig
     else
     {
         getFileSize = GetFileSize(localOldFileHandle, &lpFileSizeHigh);
-        fileSize = DWORDS2ULL(getFileSize, lpFileSizeHigh);
+        //fileSize = DWORDS2ULL(getFileSize, lpFileSizeHigh);
+        fileSize = getFileSize | ((unsigned long long)lpFileSizeHigh << 32);
 
         localActionTime = LocalCopyPaste(localOldFileHandle, localNewFileHandle, fileSize, localBlockSize, localOverlappedIOSize);
     }
@@ -172,25 +172,24 @@ DWORD PreparingCopyPaste(string localOldFilePath, string localNewFilePath, unsig
 DWORD LocalCopyPaste (HANDLE in, HANDLE out, unsigned long long fileSize, unsigned long long bs, unsigned long long localOverlappedIOSize)
 {
     DWORD localActionTime = -1;
-    unsigned long long offset_i = 0;
-    OVERLAPPED* over = NULL;
+    unsigned long long offset_i = 0; // начала файла, на сколько бит нужно сдвинуться
+    // первая переменная указывает на 1 блок, вторая с 1 на 2
+    OVERLAPPED* over = NULL; // overlapped structure
+
+    // буфер для считывания информации и роследующей записи
     char** localBuffer = NULL;
-    OVERLAPPED* overLeft = NULL;
+
+    // это для записи
+    OVERLAPPED* overLeft = NULL; // overlapped structure
     char* localBufferLeft = NULL;
     unsigned long long bsLeft = 0;
     int leftelse = 0;
+    unsigned long long i = 0;
 
-    /*if (fileSize <= 0)
-    {
-        return localActionTime;
-    }*/
+    // MEMORY ALLOCATION
 
     over = new OVERLAPPED[localOverlappedIOSize];
     localBuffer = new char*[localOverlappedIOSize];
-    for (unsigned long long i = 0; i < localOverlappedIOSize; ++i)
-    {
-        localBuffer[i] = new char[bs];
-    }
 
     overLeft = (OVERLAPPED*)malloc(sizeof(OVERLAPPED));
     localBufferLeft = (char*)malloc(sizeof(char)*bs);
@@ -199,17 +198,25 @@ DWORD LocalCopyPaste (HANDLE in, HANDLE out, unsigned long long fileSize, unsign
     oneSize = sizeof(OVERLAPPED);
     callLeft = (unsigned long long)overLeft;
 
+    for (i = 0; i < localOverlappedIOSize; i++)
+    {
+        localBuffer[i] = new char[bs];
+    }
+
     //localActionTime = timeGetTime();
     // ETO NUZHNO ISPRAVIT'
     localActionTime = 0;
+    unsigned long long i = 0
 
     do
     {
-        if(bs*localOverlappedIOSize <= fileSize)
+        if (bs*localOverlappedIOSize <= fileSize) // blocksize and overlapped number is less than filesize
         {
-            for (unsigned long long i = 0; i < localOverlappedIOSize; ++i)
+            for (i = 0; i < localOverlappedIOSize; i++)
             {
-                ULL2DWORDS(offset_i, &over[i].Offset, &over[i].OffsetHigh);
+            	over[i].Offset = offset_i; // сдвиг относительно начала файла
+    			over[i].OffsetHigh = offset_i >> 32; // 2 23-битных числа, разбитых на части
+                //ULL2DWORDS(offset_i, &over[i].Offset, &over[i].OffsetHigh);
                 offset_i += bs;
             }
         }
@@ -222,23 +229,28 @@ DWORD LocalCopyPaste (HANDLE in, HANDLE out, unsigned long long fileSize, unsign
 
             for (unsigned long long i = 0; i < localOverlappedIOSize; ++i)
             {
-                ULL2DWORDS(offset_i, &over[i].Offset, &over[i].OffsetHigh);
+            	over[i].Offset = offset_i;
+    			over[i].OffsetHigh = offset_i >> 32;
+                //ULL2DWORDS(offset_i, &over[i].Offset, &over[i].OffsetHigh);
                 offset_i += bs;
             }
-            if(leftelse)
+            if (leftelse)
             {
                 cout << "Last size is " << bsLeft << ", addr=" << callLeft << ", localOverlappedIOSize = " << localOverlappedIOSize << ". " << endl;
-                ULL2DWORDS(offset_i, &(overLeft->Offset), &(overLeft->OffsetHigh));
+                overLeft->Offset = offset_i;
+    			overLeft->OffsetHigh = offset_i >> 32;
+                //ULL2DWORDS(offset_i, &(overLeft->Offset), &(overLeft->OffsetHigh));
                 offset_i += bsLeft;
             }
         }
 
+        // read and write in buffer
         callback = 0;
-        for(unsigned long long i = 0; i < localOverlappedIOSize; ++i)
+        for (unsigned long long i = 0; i < localOverlappedIOSize; ++i)
         {
             ReadFileEx(in, localBuffer[i], bs, &over[i], CompletionRoutine);
         }
-        if(leftelse)
+        if (leftelse)
         {
             ReadFileEx(in, localBufferLeft, bsLeft, overLeft, CompletionRoutine);
         }
@@ -247,12 +259,13 @@ DWORD LocalCopyPaste (HANDLE in, HANDLE out, unsigned long long fileSize, unsign
             SleepEx(-1, TRUE);
         }
 
+        // write the new file from buffer
         callback = 0;
-        for(unsigned long long i = 0; i < localOverlappedIOSize; ++i)
+        for (unsigned long long i = 0; i < localOverlappedIOSize; ++i)
         {
             WriteFileEx(out, localBuffer[i], bs, &over[i], CompletionRoutine);
         }
-        if(leftelse)
+        if (leftelse)
         {
             WriteFileEx(out, localBufferLeft, bsLeft, overLeft, CompletionRoutine);
         }
@@ -262,6 +275,7 @@ DWORD LocalCopyPaste (HANDLE in, HANDLE out, unsigned long long fileSize, unsign
         }
     }
     while (offset_i < fileSize - 1);
+
     //localActionTime = timeGetTime() - localActionTime;
     // ETO NUZHNO IPPRAVIT'
     localActionTime = 0;
@@ -272,7 +286,8 @@ DWORD LocalCopyPaste (HANDLE in, HANDLE out, unsigned long long fileSize, unsign
     SetFilePointerEx(out, fileSizeStruct, NULL, FILE_BEGIN);
     SetEndOfFile(out);
 
-    //CLEAN
+    // FREE MEMORY PART
+
     for (unsigned long long i = 0; i < localOverlappedIOSize; ++i)
     {
         delete localBuffer[i];
@@ -313,23 +328,23 @@ DWORD LocalDriveSectorSize (DWORD &localSectorsPerCluster)
     return localBytesPerSector;
 }
 
-// ---------- ??? ----------
+// ---------- DWORD TO UNSILGEN LONG LONG CONVERTATION ----------
 
-unsigned long long DWORDS2ULL(DWORD l, DWORD h)
+/*unsigned long long DWORDS2ULL(DWORD l, DWORD h)
 {
     unsigned long long res;
     res = l;
     res = res | ((unsigned long long)h << 32);
     return res;
-}
+}*/
 
-// ---------- ??? ----------
+// ---------- UNSIGNED LONG LONG TO DWORD ----------
 
-void ULL2DWORDS(unsigned long long value, DWORD* l, DWORD* h)
+/*void ULL2DWORDS(unsigned long long value, DWORD* l, DWORD* h)
 {
     *l = value;
     *h = value >> 32;
-}
+}*/
 
 // ---------- AFTER READING FILE NEED TO MAKE THIS FUNCTION ----------
 
@@ -338,19 +353,3 @@ void CALLBACK CompletionRoutine (DWORD dwErrorCode, DWORD dwNumberOfBytesTransfe
 {
 	callback = callback + 1;
 }
-
-// ---------- GET OVERLAPPED NUMBER ----------
-
-/*unsigned long long getOverlappedNum (LPOVERLAPPED localOverlappedPointer)
-{
-    unsigned long long localNumber;
-    unsigned long long localOverlappedAdress = (unsigned long long) localOverlappedPointer;
-    if (localOverlappedAdress == callLeft)
-    {
-        return localNumber = 0;
-    }
-    else
-    {
-        return localNumber = (localOverlappedAdress - globalFirstAdress) / oneSize + 1;
-    }
-}*/
