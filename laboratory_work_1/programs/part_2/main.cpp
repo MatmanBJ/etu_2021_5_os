@@ -5,7 +5,6 @@
 #include <ctime>
 #include <fstream>
 #include <cmath>
-//#define _WIN32_WINNT 0x0501
 
 using namespace std;
 
@@ -19,7 +18,8 @@ void LocalReadWrite(long long fileSize, DWORD blockSize, int localOperationsCoun
 DWORD LocalDriveSectorSize ();
 void CALLBACK CompletionRoutine(DWORD dwErrorCode, DWORD dwNumberOfBytesTransfered, LPOVERLAPPED lpOverlapped);
 
-//Certutil -hashfile file
+// HOW TO START
+// <name.exe> <inpit file name> <bytes> <output file name> <number of cluster (sector*bytespersec) multiplition> <number of operations overlapped> <"gen" for generting file, other for file>
 
 unsigned long long callback;
 DWORD copyTime;
@@ -76,16 +76,17 @@ int LocalFileGenerator (string localOldFilePath, unsigned long long localBytesRe
 
 void CopyPaste (string localOldFilePath, string localNewFilePath)
 {
+	// ATTENTION: I'VE CHANGED SECTOR SIZE TO CLUSTER SIZE, BUT I DIN'T CHANGE VARS AND FUCNTIONS NAMES
     DWORD localSectorSize = LocalDriveSectorSize ();
     unsigned long long localBlockSize; // size of the data block I will copy
 
-    cout << "Drive sector size: " << localSectorSize << " bytes\n";
+    cout << "Drive cluster size: " << localSectorSize << " bytes\n";
 
     localBlockSize = localSectorSize*bs;
     copyTime = 0;
     copyTime = PreparingCopyPaste(localOldFilePath, localNewFilePath, localBlockSize, oios);
-    cout << "Current sector size: " << localSectorSize << ";\n"
-    << "Current sector multiplition: " << bs << ";\n"
+    cout << "Current cluster size: " << localSectorSize << ";\n"
+    << "Current cluster multiplition: " << bs << ";\n"
     << "Current block size to copy: " << localBlockSize << ";\n"
     << "Current overlapped IO number: " << oios << ";\n"
     << "Overlapped copy time: " << copyTime << ".\n";
@@ -227,7 +228,7 @@ DWORD LocalDriveSectorSize ()
     {
         cout << "\nERROR GETTING DRIVE SECTORS\n";
     }
-    return localBytesPerSector;
+    return localBytesPerSector*localSectorsPerCluster;
 }
 
 // ---------- AFTER READING FILE NEED TO MAKE THIS FUNCTION ----------
