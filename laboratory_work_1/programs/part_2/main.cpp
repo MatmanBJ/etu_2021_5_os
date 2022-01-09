@@ -72,42 +72,42 @@ void CopyPaste (string path, string target)
 
     // THE EXPERIMENT PART I
 
-    //=====localOverlappedIOSize = 1, localBlockSize = x, time = y=====
-    const size_t n_bsXY = bs_e - bs_b + 1;
-    unsigned bsX[n_bsXY];
-    unsigned bsY[n_bsXY];
-    size_t i_bsXY = 0;
-    i_bsXY++; // useless action for usage, actually
-    --i_bsXY; // useless action for usage, actually
+    //===== localOverlappedIOSize = 1, localBlockSize = x, time = y =====
+    const size_t localDeltaBlockSize = bs_e - bs_b + 1; // block size delta (changing rage)
+    unsigned localBlockSizeStep[localDeltaBlockSize]; // block size step
+    unsigned localBlockSizeTime[localDeltaBlockSize]; // block size time counter
+    size_t localBlockSizeIteration = 0; // iterator
+    localBlockSizeIteration++; // useless action for usage, actually
+    --localBlockSizeIteration; // useless action for usage, actually
     
     localOverlappedIOSize = 1;
-    for (unsigned i = bs_b, i_bsXY = 0; i <= bs_e; ++i, ++i_bsXY)
+    for (unsigned i = bs_b, localBlockSizeIteration = 0; i <= bs_e; ++i, ++localBlockSizeIteration)
     {
         localBlockSize = localSectorSize*i;
         time = PreparingCopyPaste(path, target, localBlockSize, 1);
-        cout << "localBlockSize = " << localBlockSize << " (" << i << "*" << localSectorSize << "), localOverlappedIOSize = " << localOverlappedIOSize << ", time = " << time << ". Hash of result file = \"" << "\". " << endl;
-        bsX[i_bsXY] = i;
-        bsY[i_bsXY] = time;
+        cout << localBlockSizeIteration << ". localBlockSize = " << localBlockSize << " (" << i << "*" << localSectorSize << "), localOverlappedIOSize = " << localOverlappedIOSize << ", time = " << time << ". Hash of result file = \"" << "\". " << endl;
+        localBlockSizeStep[localBlockSizeIteration] = i;
+        localBlockSizeTime[localBlockSizeIteration] = time;
     }
 
     // THE EXPERIMET PART II
 
-    //=====localBlockSize = bs_std, localOverlappedIOSize = x, time = y=====
+    //===== localBlockSize = bs_std, localOverlappedIOSize = x, time = y =====
     const size_t n_thXY = thNum_e - thNum_b + 1;
-    unsigned thX[n_bsXY];
-    unsigned thY[n_bsXY];
-    size_t i_thXY = 0;
-    i_thXY++; // useless action for usage, actually
-    --i_thXY; // useless action for usage, actually
+    unsigned localOverlappedIOSizeStep[localDeltaBlockSize]; // overlapped io size step
+    unsigned localOverlappedIOSizeTime[localDeltaBlockSize]; // overlapped io size time counter
+    size_t localOverlappedIOSizeIteration = 0; // iterator
+    localOverlappedIOSizeIteration++; // useless action for usage, actually
+    --localOverlappedIOSizeIteration; // useless action for usage, actually
 
     localBlockSize = bs_std*localSectorSize; // block size (block size we will copy) = blocks number (how many?) * sector size (on disk)
-    for (unsigned i = thNum_b, i_thXY = 0; i <= thNum_e; ++i, ++i_thXY)
+    for (unsigned i = thNum_b, localOverlappedIOSizeIteration = 0; i <= thNum_e; ++i, ++localOverlappedIOSizeIteration)
     {
         localOverlappedIOSize = i;
         time = PreparingCopyPaste(path, target, localBlockSize, localOverlappedIOSize);
-        cout << "localBlockSize = " << localBlockSize << " (" << bs_std << "*" << localSectorSize << "), localOverlappedIOSize = " << localOverlappedIOSize << ", time = " << time << ". Hash of result file = \"" << "\". " << endl;
-        thX[i_thXY] = localOverlappedIOSize;
-        thY[i_thXY] = time;
+        cout << localOverlappedIOSizeIteration << ". localBlockSize = " << localBlockSize << " (" << bs_std << "*" << localSectorSize << "), localOverlappedIOSize = " << localOverlappedIOSize << ", time = " << time << ". Hash of result file = \"" << "\". " << endl;
+        localOverlappedIOSizeStep[localOverlappedIOSizeIteration] = localOverlappedIOSize;
+        localOverlappedIOSizeTime[localOverlappedIOSizeIteration] = time;
     }
 }
 
