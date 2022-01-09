@@ -9,7 +9,7 @@
 
 using namespace std;
 
-void copyFile(HANDLE firstHandle, HANDLE secondHandle, DWORD blockSize, int operationsCount);
+//void copyFile(HANDLE firstHandle, HANDLE secondHandle, DWORD blockSize, int operationsCount);
 
 // õýíäëû íà ôàéëû, ó÷àâñòâóþùèå â îïåðàöèè êîïèðîâàíèÿ
 HANDLE firstHandle;
@@ -170,11 +170,50 @@ DWORD PreparingCopyPaste(string localOldFilePath, string localNewFilePath, unsig
     }
     else
     {
+    	DWORD blockSize = 4096*5;
         getFileSize = GetFileSize(localOldFileHandle, &lpFileSizeHigh);
         //fileSize = getFileSize | ((unsigned long long)lpFileSizeHigh << 32);
 
+	    DWORD high = 0;
+	    LARGE_INTEGER fileSizeStruct; // where file size will be wrote
+	    long long fileSize; // number where we write
+	    GetFileSizeEx(localOldFileHandle, &fileSizeStruct); // file size (for input as LARGE_INTEGER we use it!!!)
+	    fileSize = fileSizeStruct.QuadPart; // uniting fields one number
+	    long long curSize = fileSize;
+
+	    CHAR** buffer = new CHAR*[localOverlappedIOSize]; // buffer of the data
+	    for (int i=0; i < localOverlappedIOSize; i++)
+	    {
+	        buffer[i] = new CHAR[(int)blockSize];
+	    }
+	    // äîëæíû îñòàâàòüñÿ äîïóñòèìûìè äëÿ äëèòåëüíîé îïåðàöèè ÷òåíèÿ.
+	    OVERLAPPED* over_1 = new OVERLAPPED[localOverlappedIOSize]; // var for handling pointers (starting bytes)
+	    OVERLAPPED* over_2 = new OVERLAPPED[localOverlappedIOSize]; // new file
+
+	    shiftRead.QuadPart = 0; // how many rode
+	    shiftWrite.QuadPart = 0; // how many write
+
+	    for (int i=0; i < localOverlappedIOSize; i++)
+	    {
+	        over_1[i].Offset = over_2[i].Offset = shiftRead.LowPart; // FIRST PART OF THE STRUCTURE
+	        over_1[i].OffsetHigh = over_2[i].OffsetHigh = shiftRead.HighPart; // SEONDN PART (^$ bit
+	        shiftRead.QuadPart += blockSize;
+	        shiftWrite.QuadPart += blockSize;
+	    }
+
+	    do
+	    {
+	    	LocalReadWrite(curSize, blockSize, localOverlappedIOSize, over_1, buffer, localOldFileHandle, 'r');
+	        LocalReadWrite(curSize, blockSize, localOverlappedIOSize, over_2, buffer, localNewFileHandle, 'w');
+	        curSize -= (long long)(blockSize*localOverlappedIOSize);
+	    }
+	    while (curSize > 0);
+
+	    SetFilePointerEx(localNewFileHandle, fileSizeStruct, NULL, FILE_BEGIN);
+	    SetEndOfFile(localNewFileHandle);
+
         //copyFile(localOldFileHandle, localNewFileHandle, localBlockSize, localOverlappedIOSize);
-        copyFile(localOldFileHandle, localNewFileHandle, 4096*5, localOverlappedIOSize);
+        //copyFile(localOldFileHandle, localNewFileHandle, 4096*5, localOverlappedIOSize);
     }
 
     // Checking handle and closing the file
@@ -196,7 +235,7 @@ DWORD PreparingCopyPaste(string localOldFilePath, string localNewFilePath, unsig
     return localActionTime;
 }
 
-void copyFile(HANDLE firstHandle, HANDLE secondHandle, DWORD blockSize, int operationsCount)
+/*void copyFile(HANDLE firstHandle, HANDLE secondHandle, DWORD blockSize, int operationsCount)
 {
     DWORD high = 0;
     LARGE_INTEGER fileSizeStruct; // where file size will be wrote
@@ -235,144 +274,7 @@ void copyFile(HANDLE firstHandle, HANDLE secondHandle, DWORD blockSize, int oper
 
     SetFilePointerEx(secondHandle, fileSizeStruct, NULL, FILE_BEGIN);
     SetEndOfFile(secondHandle);
-}
-
-// ---------- COPY AND PASTE ACTIONS DIRECTLY ----------
-
-DWORD LocalCopyPaste (HANDLE in, HANDLE out, unsigned long long fileSize, unsigned long long bs, unsigned long long localOverlappedIOSize)
-{
-    DWORD localActionTime = -1;
-    unsigned long long offset_i = 0; // начала файла, на сколько бит нужно сдвинуться
-    // первая переменная указывает на 1 блок, вторая с 1 на 2
-    OVERLAPPED* over = NULL; // overlapped structure
-
-    // буфер для считывания информации и роследующей записи
-    char** localBuffer = NULL;
-
-    // это для записи
-    OVERLAPPED* overLeft = NULL; // overlapped structure
-    char* localBufferLeft = NULL;
-    unsigned long long bsLeft = 0;
-    int leftelse = 0;
-    unsigned long long i = 0;
-
-    // MEMORY ALLOCATION
-
-    over = new OVERLAPPED[localOverlappedIOSize];
-    localBuffer = new char*[localOverlappedIOSize];
-
-    overLeft = (OVERLAPPED*)malloc(sizeof(OVERLAPPED));
-    localBufferLeft = (char*)malloc(sizeof(char)*bs);
-
-    globalFirstAdress = (unsigned long long)(&over[0]);
-    oneSize = sizeof(OVERLAPPED);
-    callLeft = (unsigned long long)overLeft;
-
-    for (i = 0; i < localOverlappedIOSize; i++)
-    {
-        localBuffer[i] = new char[bs];
-    }
-
-    //localActionTime = timeGetTime();
-    // ETO NUZHNO ISPRAVIT'
-    localActionTime = 0;
-
-    do
-    {
-        if (bs*localOverlappedIOSize <= fileSize) // blocksize and overlapped number is less than filesize
-        {
-            for (i = 0; i < localOverlappedIOSize; i++)
-            {
-            	over[i].Offset = offset_i; // сдвиг относительно начала файла
-    			over[i].OffsetHigh = offset_i >> 32; // 2 23-битных числа, разбитых на части
-                //ULL2DWORDS(offset_i, &over[i].Offset, &over[i].OffsetHigh);
-                offset_i += bs;
-            }
-        }
-        else
-        {
-            localOverlappedIOSize = fileSize / bs;
-            leftelse = (fileSize%bs == 0?0:1);
-            bsLeft = LocalDriveSectorSize();
-            bsLeft = ( (fileSize%bs)/bsLeft + 1) * bsLeft;
-
-            for (unsigned long long i = 0; i < localOverlappedIOSize; ++i)
-            {
-            	over[i].Offset = offset_i;
-    			over[i].OffsetHigh = offset_i >> 32;
-                //ULL2DWORDS(offset_i, &over[i].Offset, &over[i].OffsetHigh);
-                offset_i += bs;
-            }
-            if (leftelse)
-            {
-                cout << "Last size is " << bsLeft << ", addr=" << callLeft << ", localOverlappedIOSize = " << localOverlappedIOSize << ". " << endl;
-                overLeft->Offset = offset_i;
-    			overLeft->OffsetHigh = offset_i >> 32;
-                //ULL2DWORDS(offset_i, &(overLeft->Offset), &(overLeft->OffsetHigh));
-                offset_i += bsLeft;
-            }
-        }
-
-        // read and write in buffer
-        callback = 0;
-        for (unsigned long long i = 0; i < localOverlappedIOSize; ++i)
-        {
-            ReadFileEx(in, localBuffer[i], bs, &over[i], CompletionRoutine);
-        }
-        if (leftelse)
-        {
-            ReadFileEx(in, localBufferLeft, bsLeft, overLeft, CompletionRoutine);
-        }
-        while (callback < localOverlappedIOSize + leftelse)
-        {
-            SleepEx(-1, TRUE);
-        }
-
-        // write the new file from buffer
-        callback = 0;
-        for (unsigned long long i = 0; i < localOverlappedIOSize; ++i)
-        {
-            WriteFileEx(out, localBuffer[i], bs, &over[i], CompletionRoutine);
-        }
-        if (leftelse)
-        {
-            WriteFileEx(out, localBufferLeft, bsLeft, overLeft, CompletionRoutine);
-        }
-        while (callback < localOverlappedIOSize + leftelse)
-        {
-            SleepEx(-1, TRUE);
-        }
-    }
-    while (offset_i < fileSize - 1);
-
-    //localActionTime = timeGetTime() - localActionTime;
-    // ETO NUZHNO IPPRAVIT'
-    localActionTime = 0;
-
-    //fix
-    LARGE_INTEGER fileSizeStruct;
-    GetFileSizeEx(in, &fileSizeStruct);
-    SetFilePointerEx(out, fileSizeStruct, NULL, FILE_BEGIN);
-    SetEndOfFile(out);
-
-    // FREE MEMORY PART
-
-    for (unsigned long long i = 0; i < localOverlappedIOSize; ++i)
-    {
-        delete localBuffer[i];
-    }
-    delete localBuffer;
-    delete over;
-    if (localBufferLeft)
-    {
-        free (localBufferLeft);
-    }
-    if (overLeft)
-    {
-        free (overLeft);
-    }
-    return localActionTime;
-}
+}*/
 
 // ---------- GET DRIVE SECTOR SIZE ----------
 
