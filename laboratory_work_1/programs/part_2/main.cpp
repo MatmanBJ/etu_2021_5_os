@@ -7,8 +7,8 @@
 
 using namespace std;
 
-int LocalFileGenerator (string path, size_t bytes);
-void CopyPaste (string path, string target);
+int LocalFileGenerator (string localOldFilePath, unsigned long long localBytesRequest);
+void CopyPaste (string localOldFilePath, string localNewFilePath);
 DWORD PreparingCopyPaste(string localOldFilePath, string localNewFilePath, unsigned long long localBlockSize, unsigned long long localOverlappedIOSize);
 DWORD LocalCopyPaste (HANDLE in, HANDLE out, unsigned long long fileSize, unsigned long long bs, unsigned long long localOverlappedIOSize);
 DWORD LocalDriveSectorSize ();
@@ -16,11 +16,7 @@ DWORD LocalDriveSectorSize (DWORD &sectorsPerCluster);
 unsigned long long DWORDS2ULL(DWORD l, DWORD h);
 void ULL2DWORDS(unsigned long long value, DWORD* l, DWORD* h);
 void CALLBACK CompletionRoutine(DWORD dwErrorCode, DWORD dwNumberOfBytesTransfered, LPOVERLAPPED lpOverlapped);
-//void CALLBACK FileIOCompletionRoutineIN(DWORD dwErrorCode, DWORD dwNumberOfBytesTransfered, LPOVERLAPPED lpOverlapped);
-//void CALLBACK FileIOCompletionRoutineOUT(DWORD dwErrorCode, DWORD dwNumberOfBytesTransfered, LPOVERLAPPED lpOverlapped);
 unsigned long long getOverlappedNum(LPOVERLAPPED lpOverlapped);
-inline HANDLE MyOpenOldFile(string path);
-inline HANDLE MyOpenNewFile(string path);
 
 //Certutil -hashfile file
 
@@ -28,6 +24,7 @@ unsigned long long callback;
 unsigned long long firstAddr;
 unsigned long long oneSize;
 unsigned long long callLeft;
+unsigned long long copyTime = 0;
 
 /*
 Поменять эти значения на те, которые вам необходимы.
@@ -59,9 +56,9 @@ int main(int argc, char **argv)
         const string oldFilePath(argv[1]);
         const string newFilePath(argv[3]);
         LocalFileGenerator (oldFilePath, oldFileBytes);
-        std::cout << "Created file number of bytes: " << oldFileBytes << " Created file path: " << oldFilePath << "\n";
+        cout << "Created file number of bytes: " << oldFileBytes << " Created file path: " << oldFilePath << "\n";
         CopyPaste(oldFilePath, newFilePath);
-        std::cout << "Copied file path: " << oldFilePath << " Pasted file path: " << newFilePath << "\n";
+        cout << "Copied file path: " << oldFilePath << " Pasted file path: " << newFilePath << "\n";
 
         return 0;
     }
@@ -74,13 +71,13 @@ int main(int argc, char **argv)
 
 // ---------- FILE GENERATION FOR COPY TESTS ----------
 
-int LocalFileGenerator (string path, size_t bytes)
+int LocalFileGenerator (string localOldFilePath, unsigned long long localBytesRequest)
 {
-    ofstream localFile (path, ios::out | ios::binary | ios::app);
+    ofstream localFile (localOldFilePath, ios :: out | ios :: binary | ios :: app);
     srand (time(NULL));
-    unsigned long bytesNum = bytes;
+    unsigned long long localBytesNumber = localBytesRequest;
     char rndByte[1];
-    for (unsigned long i = 0; i < bytesNum; ++i)
+    for (unsigned long i = 0; i < localBytesNumber; ++i)
     {
         rndByte[0] = (unsigned char)(rand() % 256);
         localFile.write (rndByte, sizeof(rndByte));
@@ -91,9 +88,9 @@ int LocalFileGenerator (string path, size_t bytes)
 
 // ---------- COPY AND PASTE MAIN PROCESS ----------
 
-void CopyPaste (string path, string target)
+void CopyPaste (string localOldFilePath, string localNewFilePath)
 {
-    DWORD time;
+    //DWORD time;
     DWORD sectorsPerCluster;
     DWORD localSectorSize = LocalDriveSectorSize (sectorsPerCluster);
     unsigned long long localBlockSize; // size of the data block I will copy
@@ -106,41 +103,56 @@ void CopyPaste (string path, string target)
 
     //===== localOverlappedIOSize = 1, localBlockSize = x, time = y =====
 
-    const size_t localDeltaBlockSize = bs_e - bs_b + 1; // block size delta (changing rage)
-    unsigned long localBlockSizeStep[localDeltaBlockSize]; // block size step
-    unsigned long localBlockSizeTime[localDeltaBlockSize]; // block size time counter
+    //const unsigned long localDeltaBlockSize = bs_e - bs_b + 1; // block size delta (changing rage)
+    //unsigned long localBlockSizeStep[localDeltaBlockSize]; // block size step
+    //unsigned long localBlockSizeTime[localDeltaBlockSize]; // block size time counter
     int localBlockSizeIteration = 0; // iterator
     
     localOverlappedIOSize = 1; // overlapped IO number
 
-    for (unsigned i = bs_b, localBlockSizeIteration = 0; i <= bs_e; ++i, ++localBlockSizeIteration)
+    localBlockSize = localSectorSize*bs_b;
+    copyTime = 0;
+    copyTime = PreparingCopyPaste(localOldFilePath, localNewFilePath, localBlockSize, 1);
+    cout << localBlockSizeIteration << ".\n"
+    << "Current block size to copy: " << localBlockSize << ";\n"
+    << "Current overlapped IO number: " << localOverlappedIOSize << ";\n"
+    << "Overlapped copy time: " << copyTime << "\n";
+
+    /*for (unsigned i = bs_b, localBlockSizeIteration = 0; i <= bs_e; ++i, ++localBlockSizeIteration)
     {
         localBlockSize = localSectorSize*i;
-        time = PreparingCopyPaste(path, target, localBlockSize, 1);
+        time = PreparingCopyPaste(localOldFilePath, localNewFilePath, localBlockSize, 1);
         cout << localBlockSizeIteration << ". Current block size to copy = " << localBlockSize << "; Current overlapped IO number = " << localOverlappedIOSize << "; time = " << time << "\n";
         localBlockSizeStep[localBlockSizeIteration] = i;
         localBlockSizeTime[localBlockSizeIteration] = time;
-    }
+    }*/
 
     // THE EXPERIMET PART II
 
     //===== localBlockSize = bs_std, localOverlappedIOSize = x, time = y =====
 
-    const size_t n_thXY = thNum_e - thNum_b + 1;
-    unsigned long localOverlappedIOSizeStep[localDeltaBlockSize]; // overlapped io size step
-    unsigned long localOverlappedIOSizeTime[localDeltaBlockSize]; // overlapped io size time counter
+    ////const unsigned long n_thXY = thNum_e - thNum_b + 1; // ???
+    //unsigned long localOverlappedIOSizeStep[localDeltaBlockSize]; // overlapped io size step
+    //unsigned long localOverlappedIOSizeTime[localDeltaBlockSize]; // overlapped io size time counter
     int localOverlappedIOSizeIteration = 0; // iterator
 
     localBlockSize = bs_std*localSectorSize; // block size (block size we will copy) = blocks number (how many?) * sector size (on disk)
 
-    for (unsigned i = thNum_b, localOverlappedIOSizeIteration = 0; i <= thNum_e; ++i, ++localOverlappedIOSizeIteration)
+    localOverlappedIOSize = thNum_b;
+    copyTime = PreparingCopyPaste(localOldFilePath, localNewFilePath, localBlockSize, localOverlappedIOSize);
+    cout << localOverlappedIOSizeIteration << ".\n"
+    << "Current block size to copy: " << localBlockSize << ";\n"
+    << "Current overlapped IO number: " << localOverlappedIOSize << ";\n"
+    << "Overlapped copy time: " << copyTime << "\n";
+
+    /*for (unsigned i = thNum_b, localOverlappedIOSizeIteration = 0; i <= thNum_e; ++i, ++localOverlappedIOSizeIteration)
     {
         localOverlappedIOSize = i;
-        time = PreparingCopyPaste(path, target, localBlockSize, localOverlappedIOSize);
+        time = PreparingCopyPaste(localOldFilePath, localNewFilePath, localBlockSize, localOverlappedIOSize);
         cout << localOverlappedIOSizeIteration << ". Current block size to copy = " << localBlockSize << "; Current overlapped IO number = " << localOverlappedIOSize << "; time = " << time << "\n";
         localOverlappedIOSizeStep[localOverlappedIOSizeIteration] = localOverlappedIOSize;
         localOverlappedIOSizeTime[localOverlappedIOSizeIteration] = time;
-    }
+    }*/
 }
 
 // ---------- PREPARING FOR COPY AND PASTE ACTIONS ----------
@@ -151,7 +163,10 @@ DWORD PreparingCopyPaste(string localOldFilePath, string localNewFilePath, unsig
     
     HANDLE localOldFileHandle = CreateFileA(localOldFilePath.c_str(), GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_FLAG_OVERLAPPED | FILE_FLAG_NO_BUFFERING, NULL); // copied file path
     HANDLE localNewFileHandle = CreateFileA(localNewFilePath.c_str(), GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_FLAG_OVERLAPPED | FILE_FLAG_NO_BUFFERING, NULL); // new file path
-    bool localCloseFile;
+    bool localCloseFile = true;
+    DWORD lpFileSizeHigh; // lpdword filesize high
+    DWORD getFileSize;
+    unsigned long long fileSize = DWORDS2ULL(getFileSize, lpFileSizeHigh);
 
     if (localOldFileHandle == NULL || localOldFileHandle == INVALID_HANDLE_VALUE || localNewFileHandle == NULL || localNewFileHandle == INVALID_HANDLE_VALUE)
     {
@@ -160,9 +175,8 @@ DWORD PreparingCopyPaste(string localOldFilePath, string localNewFilePath, unsig
     }
     else
     {
-        DWORD hSize;
-        DWORD lSize = GetFileSize(localOldFileHandle, &hSize);
-        unsigned long long fileSize = DWORDS2ULL(lSize, hSize);
+        getFileSize = GetFileSize(localOldFileHandle, &lpFileSizeHigh);
+        fileSize = DWORDS2ULL(getFileSize, lpFileSizeHigh);
 
         localActionTime = LocalCopyPaste(localOldFileHandle, localNewFileHandle, fileSize, localBlockSize, localOverlappedIOSize);
     }
@@ -171,25 +185,25 @@ DWORD PreparingCopyPaste(string localOldFilePath, string localNewFilePath, unsig
     if (localOldFileHandle != NULL && localOldFileHandle != INVALID_HANDLE_VALUE) // old file checking
     {
         localCloseFile = CloseHandle (localOldFileHandle);
-        if (localCloseFile)
+        /*if (localCloseFile)
         {
-            localCloseFile = 1;
-        }
-        else
+            localCloseFile = true;
+        }*/
+        if (localCloseFile == false)
         {
-            cout << "Problem with closing file \"" << localOldFileHandle << "\". " << endl;
+            cout << "EROOR WHILE CLOSING FILE \"" << localOldFileHandle << "\". " << endl;
         }
     }
     if (localNewFileHandle != NULL && localNewFileHandle != INVALID_HANDLE_VALUE) // new file checking
     {
         localCloseFile = CloseHandle (localNewFileHandle);
-        if (localCloseFile)
+        /*if (localCloseFile)
         {
-            localCloseFile = 1;
-        }
-        else
+            localCloseFile = true;
+        }*/
+        if (localCloseFile == false)
         {
-            cout << "Problem with closing file \"" << localNewFileHandle << "\". " << endl;
+            cout << "ERROR WHILE CLOSING FILE \"" << localNewFileHandle << "\". " << endl;
         }
     }
 
@@ -201,7 +215,6 @@ DWORD PreparingCopyPaste(string localOldFilePath, string localNewFilePath, unsig
 DWORD LocalCopyPaste (HANDLE in, HANDLE out, unsigned long long fileSize, unsigned long long bs, unsigned long long localOverlappedIOSize)
 {
     DWORD localActionTime = -1;
-
     unsigned long long offset_i = 0;
 
     OVERLAPPED* over = NULL;
@@ -263,7 +276,6 @@ DWORD LocalCopyPaste (HANDLE in, HANDLE out, unsigned long long fileSize, unsign
                 ULL2DWORDS(offset_i, &(overLeft->Offset), &(overLeft->OffsetHigh));
                 offset_i += bsLeft;
             }
-
         }
 
         callback = 0;
@@ -368,41 +380,17 @@ void CALLBACK CompletionRoutine (DWORD dwErrorCode, DWORD dwNumberOfBytesTransfe
 	callback = callback + 1;
 }
 
-/*void CALLBACK FileIOCompletionRoutineIN(DWORD dwErrorCode, DWORD dwNumberOfBytesTransfered, LPOVERLAPPED lpOverlapped)
+unsigned long long getOverlappedNum(LPOVERLAPPED localOverlappedPointer)
 {
-	callback = callback + 1;
-}
-
-void CALLBACK FileIOCompletionRoutineOUT(DWORD dwErrorCode, DWORD dwNumberOfBytesTransfered, LPOVERLAPPED lpOverlapped)
-{
-    callback = callback + 1;
-}*/
-
-unsigned long long getOverlappedNum(LPOVERLAPPED lpOverlapped)
-{
-    unsigned long long res;
-    unsigned long long overAddr = (unsigned long long)lpOverlapped;
-    if (overAddr == callLeft)
+    unsigned long long localNumber;
+    unsigned long long localOverlappedAdress = (unsigned long long)localOverlappedPointer;
+    if (localOverlappedAdress == callLeft)
     {
-        res = 0;
+        localNumber = 0;
     }
     else
     {
-        res = (overAddr - firstAddr) / oneSize + 1;
+        localNumber = (localOverlappedAdress - firstAddr) / oneSize + 1;
     }
-    return res;
+    return localNumber;
 }
-
-/*inline HANDLE MyOpenOldFile(string path)
-{
-    HANDLE res = NULL;
-    res = CreateFileA(path.c_str(), GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_FLAG_OVERLAPPED | FILE_FLAG_NO_BUFFERING, NULL);
-    return res;
-}
-
-inline HANDLE MyOpenNewFile(string path)
-{
-    HANDLE res = NULL;
-    res = CreateFileA(path.c_str(), GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_FLAG_OVERLAPPED | FILE_FLAG_NO_BUFFERING, NULL);
-    return res;
-}*/
