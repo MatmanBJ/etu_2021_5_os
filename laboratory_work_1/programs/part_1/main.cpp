@@ -5,7 +5,7 @@ Faculty of Computer Science and Technology "FKTI",
 Department of Computer Science and Engineering,
 Computer Systems Engineering and Informatics (09.03.01) program.
 
-OS labortory work 1 version 0_6 dated 2021_09_21
+OS labortory work 1 version 0_6 dated 2021_09_22
 
 This software is under MIT License (X11 License).
 You can see a detailed description in "LICENSE.md" file.
@@ -37,7 +37,7 @@ It Seems so Long and Endless...
 
 #include <windows.h> // for WinAPI functions
 #include <math.h> // for double making
-#include <exception>
+#include <exception> // for exceptions
 #include <iostream> // just for working
 #include <string> // for the "string" type using
 #include <vector> // for the "vector" type using
@@ -58,11 +58,12 @@ void LocalGetDriveType ();
 void LocalGetVolumeInformation ();
 void LocalGetDiskFreeSpaceEx ();
 void LocalGetDiskFreeSpace ();
-//string GetPathOld ();
-string GetPathNew (char localFlag);
+string GetPathKernel (char localFlag);
+string GetPathShell (char localFunctionFlag, char localFlagOne, char localFlagTwo, string localMessage);
 void LocalCreateRemoveDirectory (char actionCreateRemove);
 void LocalCreateFile();
 void LocalCopyMoveFile(char actionCopyMove);
+void LocalGetFileAttributes ();
 
 // ---------- MAIN ----------
 
@@ -70,7 +71,7 @@ int main (int argc, char* argv[]) // i've finally understood what it means (argc
 {
 	// "GET CURRENT DIRECTORY", "SET CURRENT DIRECTORY"
 
-	int flag = -1; // -1 for incorrect input continue the program
+	int flag = -1; // "-1" for incorrect input continue the program
 
 	do
 	{
@@ -86,7 +87,7 @@ int main (int argc, char* argv[]) // i've finally understood what it means (argc
 				cout << "Your current working path is: \"" << currentPath << "\" (c:\\ by default).\n";
 				break;
 			case 2:
-				currentPath = GetPathNew('c');
+				currentPath = GetPathKernel('c');
 				break;
 			case 3:
 				Info();
@@ -126,6 +127,9 @@ int main (int argc, char* argv[]) // i've finally understood what it means (argc
 				break;
 			case 53:
 				LocalCopyMoveFile('e');
+				break;
+			case 61:
+				LocalGetFileAttributes();
 				break;
 			default:
 				cout << "Incorrect input! Try again.";
@@ -177,8 +181,12 @@ void MainMenu ()
 	cout << "51 -- Copy file\n";
 	cout << "52 -- Move file\n";
 	cout << "53 -- Move file (extended properties)\n";
+	cout << "6 -- ATTRIBUTES\n";
+	cout << "61 -- Get file attributes\n";
 	cout << "\n";
 }
+
+// ---------- 0 -- INFO ----------
 
 void Info ()
 {
@@ -186,11 +194,13 @@ void Info ()
 	<< "Faculty of Computer Science and Technology \"FKTI\",\n"
 	<< "Department of Computer Science and Engineering,\n"
 	<< "Computer Systems Engineering and Informatics (09.03.01) program.\n\n"
-	<< "OS labortory work 1 version 0_6 dated 2021_09_21\n\n"
+	<< "OS labortory work 1 version 0_6 dated 2021_09_22\n\n"
 	<< "This software is under MIT License (X11 License).\n"
 	<< "You can see a detailed description in \"LICENSE.md\" file.\n\n"
 	<< "Copyight (c) 2021 Sobolev Matvey Sergeevich\n";
 }
+
+// ---------- 0 -- POEM ----------
 
 void Poem ()
 {
@@ -314,7 +324,10 @@ void LocalGetVolumeInformation ()
 		cout << " Volume Serial Number is " << VolumeSerialNumber << endl;
 		cout << " File System is " << FileSystemNameBuffer << endl;
 	}
-	else cout << " Not Present (GetVolumeInformation)" << endl;
+	else
+	{
+		cout << " Not Present (GetVolumeInformation)" << endl;
+	}
 }
 
 // ---------- 2 -- GET DISK FREE SPACE EX ----------
@@ -369,21 +382,14 @@ void LocalGetDiskFreeSpace ()
 	//const char diskNameCC[4] = {'e', ':', '\\'}; // you can do this
 	//string diskNameS = "e:\\"; // and you can do this
 
-	/*szDrive[0] = pszDrive[0];
-	szDrive[1] = ':';
-	szDrive[2] = '\\';
-	szDrive[3] = '\0';
-	pszDrive = szDrive;
-	szDrive[4] = pszDrive[0];*/
 	DWORD secPerClus;
 	DWORD bytePerSec;
 	DWORD freeClus;
 	DWORD totalClus;
-	//int retval = GetDiskFreeSpace(diskNameCC, &secPerClus, &bytePerSec, &freeClus, &totalClus); // const char* explicitly
+	//int gdfs = GetDiskFreeSpace(diskNameCC, &secPerClus, &bytePerSec, &freeClus, &totalClus); // const char* explicitly
 	//int gdfs = GetDiskFreeSpace(diskNameS.c_str(), &secPerClus, &bytePerSec, &freeClus, &totalClus); // const char* from string (with c_str() method)
 	int gdfs = GetDiskFreeSpace(localDiskName.c_str(), &secPerClus, &bytePerSec, &freeClus, &totalClus);
 
-	//int retval = GetDiskFreeSpace((LPCWSTR)aaa, &secPerClus, &bytePerSec, &freeClus, &totalClus);
 	if (gdfs != 0)
 	{
 		cout << "Disk free space information about disk " << localDiskName << "!\n";
@@ -408,18 +414,26 @@ bool dirExists(const std::string& dirName_in)
 	DWORD ftyp = GetFileAttributesA(dirName_in.c_str());
 	if (ftyp == INVALID_FILE_ATTRIBUTES)
 	{
-		return false;  //something is wrong with your path!
+		return false; // something is wrong with your path!
 	}
-	if (ftyp & FILE_ATTRIBUTE_DIRECTORY)
+	else if (ftyp & FILE_ATTRIBUTE_DIRECTORY)
 	{
-		return true;   // this is a directory!
+		return true; // this is a directory!
 	}
-	return false;    // this is not a directory!
+	else
+	{
+		return false; // this is not a directory!
+	}
 }
 
-// ---------- 3 -- GET PATH NEW ----------
+// ---------- 3 -- GET PATH KERNEL ----------
 
-string GetPathNew (char localFlag)
+// 'c' -- current (working) directory path
+// 'a' -- absolute directory path
+// 'r' -- relative directory path
+// 'f' -- absolute (full) file path
+// 's' -- relative (short) file path
+string GetPathKernel (char localFlag)
 {
 	char localCommit = 'n';
 	string localPath;
@@ -529,6 +543,41 @@ string GetPathNew (char localFlag)
 	return localPath;
 }
 
+// ---------- 3 -- GET PATH SHELL ----------
+
+string GetPathShell (char localFlagOne, char localFlagTwo, string localMessageOne, string localMessageTwo)
+{
+	//"Path to the FILE, which ATTRIBUTES you WANT TO GET.\n"
+	char localFunctionFlag = '!'; // just random symbol
+	string localFunctionPath;
+	while (localFunctionFlag != localFlagOne && localFunctionFlag != localFlagTwo)
+	{
+		cout << localMessageOne << localMessageTwo;
+		// checking for the flag
+		cin >> localFunctionFlag;
+		if (localFunctionFlag != localFlagOne && localFunctionFlag != localFlagTwo)
+		{
+			cout << "Try again!\n";
+		}
+	}
+	if (localFunctionFlag == localFlagOne) // full file path situation
+	{
+		localFunctionPath = GetPathKernel(localFunctionFlag); // set new absolute path
+	}
+	else if (localFunctionFlag == localFlagTwo) // short file path situation
+	{
+		char localChange = 'n';
+		cout << "Do you want to change current working path? [y/n]\n";
+		cin >> localChange;
+		if (localChange == 'y')
+		{
+			currentPath = GetPathKernel('c'); // changing current directory
+		}
+		localFunctionPath = GetPathKernel(localFunctionFlag); // set new relative path
+	}
+	return localFunctionPath;
+}
+
 // ---------- 3 -- LOCAL CREATE DIRECTORY ----------
 
 void LocalCreateRemoveDirectory (char actionCreateRemove) // if 'c' -- creating directory, if 'r' -- removing directory, creating by default
@@ -536,7 +585,7 @@ void LocalCreateRemoveDirectory (char actionCreateRemove) // if 'c' -- creating 
 	char localPathFlag = 'y'; // just another letter, not 'a' or 'r', so you need input it anyway
 	string localDirectory; // directory path you input
 
-	while (localPathFlag != 'a' && localPathFlag != 'r')
+	/*while (localPathFlag != 'a' && localPathFlag != 'r')
 	{
 		cout << "Do you want to input absolute path of the directory or relative? [a/r]\n";
 		cin >> localPathFlag;
@@ -548,7 +597,7 @@ void LocalCreateRemoveDirectory (char actionCreateRemove) // if 'c' -- creating 
 
 	if (localPathFlag == 'a')
 	{
-		localDirectory = GetPathNew(localPathFlag); // set new absolute path
+		localDirectory = GetPathKernel(localPathFlag); // set new absolute path
 	}
 	else if (localPathFlag == 'r')
 	{
@@ -557,24 +606,14 @@ void LocalCreateRemoveDirectory (char actionCreateRemove) // if 'c' -- creating 
 		cin >> localChange;
 		if (localChange == 'y')
 		{
-			currentPath = GetPathNew('c'); // changing current directory
+			currentPath = GetPathKernel('c'); // changing current directory
 		}
-		localDirectory = GetPathNew(localPathFlag); // set new relative path
-	}
+		localDirectory = GetPathKernel(localPathFlag); // set new relative path
+	}*/
 
-	if (actionCreateRemove == 'c')
-	{
-		if (CreateDirectory(localDirectory.c_str(), NULL))
-		{
-			cout << "The directory \"" << localDirectory << "\" has been successfully created!\n";
-		}
-		else
-		{
-			cout << "Something wrong! The directory \"" << localDirectory << "\" hasn't been created!\n";
-			cout << "Last error code is \"" << GetLastError() << "\"\n";
-		}
-	}
-	else if (actionCreateRemove == 'r')
+	localDirectory = GetPathShell('a', 'r', "", "Do you want to input absolute path of the directory or relative? [a/r]\n");
+
+	if (actionCreateRemove == 'r') // 'r'
 	{
 		if (RemoveDirectory(localDirectory.c_str()))
 		{
@@ -586,7 +625,7 @@ void LocalCreateRemoveDirectory (char actionCreateRemove) // if 'c' -- creating 
 			cout << "Last error code is \"" << GetLastError() << "\"\n";
 		}
 	}
-	else
+	else // 'c' and default
 	{
 		if (CreateDirectory(localDirectory.c_str(), NULL))
 		{
@@ -609,7 +648,7 @@ void LocalCreateFile () // A WISE FACT: THERE IS NO "OPEN FILE" FINCTION, THERE 
 	char localPathFlag = 'y'; // just another letter, not 'f' or 's', so you need input it anyway
 	string localFilePath; // file path you input
 
-	while (localPathFlag != 'f' && localPathFlag != 's')
+	/*while (localPathFlag != 'f' && localPathFlag != 's')
 	{
 		cout << "Do you want to input absolute (full) path of the file or relative (short)? [f/s]\n";
 		cin >> localPathFlag;
@@ -621,7 +660,7 @@ void LocalCreateFile () // A WISE FACT: THERE IS NO "OPEN FILE" FINCTION, THERE 
 
 	if (localPathFlag == 'f') // full file path situation
 	{
-		localFilePath = GetPathNew(localPathFlag); // set new absolute path
+		localFilePath = GetPathKernel(localPathFlag); // set new absolute path
 	}
 	else if (localPathFlag == 's') // short file path situation
 	{
@@ -630,10 +669,12 @@ void LocalCreateFile () // A WISE FACT: THERE IS NO "OPEN FILE" FINCTION, THERE 
 		cin >> localChange;
 		if (localChange == 'y')
 		{
-			currentPath = GetPathNew('c'); // changing current directory
+			currentPath = GetPathKernel('c'); // changing current directory
 		}
-		localFilePath = GetPathNew(localPathFlag); // set new relative path
-	}
+		localFilePath = GetPathKernel(localPathFlag); // set new relative path
+	}*/
+
+	localFilePath = GetPathShell('f', 's', "Path to the FILE, which you WANT TO CREATE (OPEN).\n", "Do you want to input absolute (full) path of the file or relative (short)? [f/s]\n");
 
 	while (localChoose < 1 || localChoose > 5)
 	{
@@ -706,7 +747,6 @@ void LocalCopyMoveFile (char actionCopyMove) // 'c' for copy, 'm' for moving, 'e
 
 	int localChoose = 0; // to start a loop
 	bool localFailIfExists; // for existing file reaction
-	//bool localCopy;
 	char localPathFlag = 'y'; // just another letter, not 'f' or 's', so you need input it anyway
 	char localSameNameFlag = 'a'; // random letter
 	string localOldFilePath; // old (copied) file path you input
@@ -714,18 +754,23 @@ void LocalCopyMoveFile (char actionCopyMove) // 'c' for copy, 'm' for moving, 'e
 
 	// OLD FILE PATH INPUT (INCLUDING SITUATIONS "COPY" AND "MOVE")
 
-	while (localPathFlag != 'f' && localPathFlag != 's')
+	if (actionCopyMove == 'm' || actionCopyMove == 'e') // 'm' is for "moving", 'e' is for "extended moving"
+	{
+		localOldFilePath = GetPathShell('f', 's', "Path to the FILE, which you WANT TO MOVE (CUT).\n", "Do you want to input absolute (full) path of the file or relative (short)? [f/s]\n");
+	}
+	else // 'c' is for "copy", "copy" is default
+	{
+		localOldFilePath = GetPathShell('f', 's', "Path to the FILE, which you WANT TO COPY.\n", "Do you want to input absolute (full) path of the file or relative (short)? [f/s]\n");
+	}
+
+	/*while (localPathFlag != 'f' && localPathFlag != 's')
 	{
 		// "copy" and "move" situations
-		if (actionCopyMove == 'c') // 'c' is for "copy"
-		{
-			cout << "Path to the FILE, which you WANT TO COPY.\n" << "Do you want to input absolute (full) path of the file or relative (short)? [f/s]\n";
-		}
-		else if (actionCopyMove == 'm' || actionCopyMove == 'e') // 'm' is for "moving", 'e' is for "extended moving"
+		if (actionCopyMove == 'm' || actionCopyMove == 'e') // 'm' is for "moving", 'e' is for "extended moving"
 		{
 			cout << "Path to the FILE, which you WANT TO MOVE (CUT).\n" << "Do you want to input absolute (full) path of the file or relative (short)? [f/s]\n";
 		}
-		else // "copy" is default
+		else // 'c' is for "copy", "copy" is default
 		{
 			cout << "Path to the FILE, which you WANT TO COPY.\n" << "Do you want to input absolute (full) path of the file or relative (short)? [f/s]\n";
 		}
@@ -739,7 +784,7 @@ void LocalCopyMoveFile (char actionCopyMove) // 'c' for copy, 'm' for moving, 'e
 
 	if (localPathFlag == 'f') // full file path situation
 	{
-		localOldFilePath = GetPathNew(localPathFlag); // set new absolute path
+		localOldFilePath = GetPathKernel(localPathFlag); // set new absolute path
 	}
 	else if (localPathFlag == 's') // short file path situation
 	{
@@ -748,10 +793,10 @@ void LocalCopyMoveFile (char actionCopyMove) // 'c' for copy, 'm' for moving, 'e
 		cin >> localChange;
 		if (localChange == 'y')
 		{
-			currentPath = GetPathNew('c'); // changing current directory
+			currentPath = GetPathKernel('c'); // changing current directory
 		}
-		localOldFilePath = GetPathNew(localPathFlag); // set new relative path
-	}
+		localOldFilePath = GetPathKernel(localPathFlag); // set new relative path
+	}*/
 
 	// SAME NAME SITUATION
 
@@ -768,19 +813,54 @@ void LocalCopyMoveFile (char actionCopyMove) // 'c' for copy, 'm' for moving, 'e
 
 	// NEW FILE PATH INPUT
 
-	localPathFlag = 'y'; // random letter again to prevent ignoring if construction
-	while (localPathFlag != 'f' && localPathFlag != 's')
+	//localPathFlag = 'y'; // random letter again to prevent ignoring if construction
+
+	if (localSameNameFlag == 'y') // same name of the file -- choosing full directory path instead of the filename
+	{
+		string localFilename = string(localOldFilePath);
+		// Remove directory if present.
+		// Do this before extension removal incase directory has a period character.
+		const size_t last_slash_idx = localFilename.find_last_of("\\/");
+		if (std::string::npos != last_slash_idx)
+		{
+		    localFilename.erase(0, last_slash_idx + 1);
+		}
+		// Remove extension if present.
+		/*const size_t period_idx = localFilename.rfind('.');
+		if (std::string::npos != period_idx)
+		{
+		    localFilename.erase(period_idx);
+		}*/
+
+		if (actionCopyMove == 'm' || actionCopyMove == 'e') // 'm' is for "moving", 'e' is for "extended moving"
+		{
+			localNewFilePath = GetPathShell('a', 'r', "Path to the NEW DIRECTORY, where you WANT to MOVE (PASTE) the CUT FILE.\n", "Do you want to input absolute path of the directory or relative? [a/r]\n") + localFilename;
+		}
+		else // 'c' is for "copy", "copy" is DEFAULT
+		{
+			localNewFilePath = GetPathShell('a', 'r', "Path to the NEW DIRECTORY, where you WANT to PASTE the COPIED FILE.\n", "Do you want to input absolute path of the directory or relative? [a/r]\n") + localFilename;
+		}
+	}
+	else // 'n', different (as user choosed) name of the file -- choosing full file path (not the same name is DEFAULT)
+	{
+		if (actionCopyMove == 'm' || actionCopyMove == 'e') // 'm' is for "moving", 'e' is for "extended moving"
+		{
+			localNewFilePath = GetPathShell('f', 's', "Path to the NEW FILE, where you WANT to MOVE (PASTE) the CUT FILE.\n", "Do you want to input absolute (full) path of the file or relative (short)? [f/s]\n");
+		}
+		else // 'c' is for "copy", "copy" is DEFAULT
+		{
+			localNewFilePath = GetPathShell('f', 's', "Path to the NEW FILE, where you WANT to PASTE the COPIED FILE.\n", "Do you want to input absolute (full) path of the file or relative (short)? [f/s]\n");
+		}
+	}
+
+	/*while (localPathFlag != 'f' && localPathFlag != 's')
 	{
 		// "copy" and "move" situations
-		if (actionCopyMove == 'c') // 'c' is for "copy"
-		{
-			cout << "Path to the NEW FILE, where you WANT to PASTE the COPIED FILE.\n" << "Do you want to input absolute (full) path of the file or relative (short)? [f/s]\n";
-		}
-		else if (actionCopyMove == 'm' || actionCopyMove == 'e') // 'm' is for "moving", 'e' is for "extended moving"
+		if (actionCopyMove == 'm' || actionCopyMove == 'e') // 'm' is for "moving", 'e' is for "extended moving"
 		{
 			cout << "Path to the NEW FILE, where you WANT to MOVE (PASTE) the CUT FILE.\n" << "Do you want to input absolute (full) path of the file or relative (short)? [f/s]\n";
 		}
-		else // "copy" is default
+		else // 'c' is for "copy", "copy" is DEFAULT
 		{
 			cout << "Path to the NEW FILE, where you WANT to PASTE the COPIED FILE.\n" << "Do you want to input absolute (full) path of the file or relative (short)? [f/s]\n";
 		}
@@ -802,26 +882,16 @@ void LocalCopyMoveFile (char actionCopyMove) // 'c' for copy, 'm' for moving, 'e
 		{
 		    localFilename.erase(0, last_slash_idx + 1);
 		}
-		// Remove extension if present.
-		/*const size_t period_idx = localFilename.rfind('.');
-		if (std::string::npos != period_idx)
-		{
-		    localFilename.erase(period_idx);
-		}*/
 
 		if (localSameNameFlag == 'y') // same name of the file -- choosing full directory path instead of the filename
 		{
-			localNewFilePath = GetPathNew('a') + localFilename; // set new absolute path, 'a' means "absolute"
+			localNewFilePath = GetPathKernel('a') + localFilename; // set new absolute path, 'a' means "absolute"
 		}
-		else if (localSameNameFlag == 'n') // different (as user choosed) name of the file -- choosing full file path
+		else // 'n', different (as user choosed) name of the file -- choosing full file path (not the same name is DEFAULT)
 		{
-			localNewFilePath = GetPathNew(localPathFlag); // set new absolute path, 'f' means "full file path"
+			localNewFilePath = GetPathKernel(localPathFlag); // set new absolute path, 'f' means "full file path"
 		}
-		else // not the same name -- default
-		{
-			localNewFilePath = GetPathNew(localPathFlag); // set new absolute path, 'f' means "full file path"
-		}
-		//localNewFilePath = GetPathNew(localPathFlag); // set new absolute path
+		//localNewFilePath = GetPathKernel(localPathFlag); // set new absolute path
 	}
 	else if (localPathFlag == 's') // short file path situation
 	{
@@ -833,35 +903,25 @@ void LocalCopyMoveFile (char actionCopyMove) // 'c' for copy, 'm' for moving, 'e
 		{
 		    localFilename.erase(0, last_slash_idx + 1);
 		}
-		// Remove extension if present.
-		/*const size_t period_idx = localFilename.rfind('.');
-		if (std::string::npos != period_idx)
-		{
-		    localFilename.erase(period_idx);
-		}*/
 
 		char localChange = 'n';
 		cout << "Do you want to change current working path? [y/n]\n";
 		cin >> localChange;
 		if (localChange == 'y')
 		{
-			currentPath = GetPathNew('c'); // changing current directory
+			currentPath = GetPathKernel('c'); // changing current directory
 		}
 
 		if (localSameNameFlag == 'y') // same name of the file -- choosing relative directory path instead of the filename
 		{
-			localNewFilePath = GetPathNew('r') + localFilename; // set new relative path, 'r' means "relative"
+			localNewFilePath = GetPathKernel('r') + localFilename; // set new relative path, 'r' means "relative"
 		}
-		else if (localSameNameFlag == 'n') // different (as user choosed) name of the file -- choosing short file path
+		else // 'n', different (as user choosed) name of the file -- choosing short file path (not the same name is DEFAULT)
 		{
-			localNewFilePath = GetPathNew(localPathFlag); // set new relative path, 's' means "short file path"
+			localNewFilePath = GetPathKernel(localPathFlag); // set new relative path, 's' means "short file path"
 		}
-		else // not the same name -- default
-		{
-			localNewFilePath = GetPathNew(localPathFlag); // set new relative path, 's' means "short file path"
-		}
-		//localNewFilePath = GetPathNew(localPathFlag); // set new relative path
-	}
+		//localNewFilePath = GetPathKernel(localPathFlag); // set new relative path
+	}*/
 
 	// COPY and MOVE
 
@@ -993,5 +1053,200 @@ void LocalCopyMoveFile (char actionCopyMove) // 'c' for copy, 'm' for moving, 'e
 			cout << "Something wrong! The file \"" << localOldFilePath << "\" hasn't been moved to file \"" << localNewFilePath << "\"!\n";
 			cout << "Last error code is \"" << GetLastError() << "\"\n"; // here i need to insert last error text string
 		}
+	}
+}
+
+// ---------- 6 -- LOCAL GET FILE ATTRIBUTES ----------
+
+void LocalGetFileAttributes ()
+{
+	// specification of "GetFileAttributesA"
+	/*DWORD GetFileAttributesA(
+		LPCSTR lpFileName // file name, which i want to get the file attributes
+	);*/
+
+	DWORD localFileAttributes = 0;
+	string localFilePath; // file path you input
+
+	// FILE PATH INPUT
+
+	localFilePath = GetPathShell('f', 's', "Path to the FILE or DIRECTORY, which ATTRIBUTES you WANT TO GET.\n", "Do you want to input absolute (full) path of the file (directory) or relative (short)? [f/s]\n");
+
+	localFileAttributes = GetFileAttributes(localFilePath.c_str());
+
+	cout << "File \"" << localFilePath << "\" attributes:\n";
+	if (localFileAttributes & FILE_ATTRIBUTE_ARCHIVE)
+	{
+		cout << "Archive (FILE_ATTRIBUTE_ARCHIVE)\n";
+	}
+	if (localFileAttributes & FILE_ATTRIBUTE_COMPRESSED)
+	{
+		cout << "Compressed (FILE_ATTRIBUTE_COMPRESSED)\n";
+	}
+	if (localFileAttributes & FILE_ATTRIBUTE_DEVICE)
+	{
+		cout << "Device (FILE_ATTRIBUTE_DEVICE)\n";
+	}
+	if (localFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+	{
+		cout << "Directory (FILE_ATTRIBUTE_DIRECTORY)\n";
+	}
+	if (localFileAttributes & FILE_ATTRIBUTE_ENCRYPTED)
+	{
+		cout << "Encrypted (FILE_ATTRIBUTE_ENCRYPTED)\n";
+	}
+	if (localFileAttributes & FILE_ATTRIBUTE_HIDDEN)
+	{
+		cout << "Hidden (FILE_ATTRIBUTE_HIDDEN)\n";
+	}
+	/*if (localFileAttributes & FILE_ATTRIBUTE_INTEGRITY_STREAM)
+	{
+		cout << "Data stream configured with integrity (FILE_ATTRIBUTE_INTEGRITY_STREAM)\n";
+	}*/
+	if (localFileAttributes & FILE_ATTRIBUTE_NORMAL)
+	{
+		cout << "Normal (FILE_ATTRIBUTE_NORMAL)\n";
+	}
+	if (localFileAttributes & FILE_ATTRIBUTE_NOT_CONTENT_INDEXED)
+	{
+		cout << "Not indexed (FILE_ATTRIBUTE_NOT_CONTENT_INDEXED)\n";
+	}
+	/*if (localFileAttributes & FILE_ATTRIBUTE_NO_SCRUB_DATA)
+	{
+		cout << "Data stream not to be read by the data integrity scanner (FILE_ATTRIBUTE_NO_SCRUB_DATA)\n";
+	}*/
+	if (localFileAttributes & FILE_ATTRIBUTE_OFFLINE)
+	{
+		cout << "Don't avaliable immediatly (FILE_ATTRIBUTE_OFFLINE)\n";
+	}
+	if (localFileAttributes & FILE_ATTRIBUTE_READONLY)
+    {
+		cout << "Read-only (FILE_ATTRIBUTE_READONLY)\n";
+	}
+	/*if (localFileAttributes & FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS)
+	{
+		cout << "Data is not fully presented locally (FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS)\n";
+	}
+	if (localFileAttributes & FILE_ATTRIBUTE_RECALL_ON_OPEN)
+	{
+		cout << "Data hasn't physical representation on system (FILE_ATTRIBUTE_RECALL_ON_OPEN)\n";
+	}*/
+	if (localFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT)
+	{
+		cout << "Reparse point/representation link (FILE_ATTRIBUTE_REPARSE_POINT)\n";
+	}
+	if (localFileAttributes & FILE_ATTRIBUTE_SPARSE_FILE)
+	{
+		cout << "Sparse file (FILE_ATTRIBUTE_SPARSE_FILE)\n";
+	}
+	if (localFileAttributes & FILE_ATTRIBUTE_SYSTEM)
+	{
+		cout << "System used (FILE_ATTRIBUTE_SYSTEM)\n";
+	}
+	if (localFileAttributes & FILE_ATTRIBUTE_TEMPORARY)
+	{
+		cout << "Temporary storage (FILE_ATTRIBUTE_TEMPORARY)\n";
+	}
+	if (localFileAttributes & FILE_ATTRIBUTE_VIRTUAL)
+	{
+		cout << "Reserved for system (FILE_ATTRIBUTE_VIRTUAL)\n";
+	}
+}
+
+// ---------- 6 -- LOCAL SET FILE ATTRIBUTES ----------
+
+void LocalSetFileAttributes ()
+{
+	// specification of "SetFileAttributesA"
+	/*BOOL SetFileAttributesA(
+		LPCSTR lpFileName, // filename
+		DWORD  dwFileAttributes //attributes
+	);*/
+
+	DWORD localFileAttributes = 0;
+	string localFilePath; // file path you input
+
+	// FILE PATH INPUT
+
+	localFilePath = GetPathShell('f', 's', "Path to the FILE or DIRECTORY, which ATTRIBUTES you WANT TO SET.\n", "Do you want to input absolute (full) path of the file (directory) or relative (short)? [f/s]\n");
+
+	localFileAttributes = GetFileAttributes(localFilePath.c_str());
+
+	cout << "File \"" << localFilePath << "\" attributes:\n";
+	if (localFileAttributes & FILE_ATTRIBUTE_ARCHIVE)
+	{
+		cout << "Archive (FILE_ATTRIBUTE_ARCHIVE)\n";
+	}
+	if (localFileAttributes & FILE_ATTRIBUTE_COMPRESSED)
+	{
+		cout << "Compressed (FILE_ATTRIBUTE_COMPRESSED)\n";
+	}
+	if (localFileAttributes & FILE_ATTRIBUTE_DEVICE)
+	{
+		cout << "Device (FILE_ATTRIBUTE_DEVICE)\n";
+	}
+	if (localFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+	{
+		cout << "Directory (FILE_ATTRIBUTE_DIRECTORY)\n";
+	}
+	if (localFileAttributes & FILE_ATTRIBUTE_ENCRYPTED)
+	{
+		cout << "Encrypted (FILE_ATTRIBUTE_ENCRYPTED)\n";
+	}
+	if (localFileAttributes & FILE_ATTRIBUTE_HIDDEN)
+	{
+		cout << "Hidden (FILE_ATTRIBUTE_HIDDEN)\n";
+	}
+	/*if (localFileAttributes & FILE_ATTRIBUTE_INTEGRITY_STREAM)
+	{
+		cout << "Data stream configured with integrity (FILE_ATTRIBUTE_INTEGRITY_STREAM)\n";
+	}*/
+	if (localFileAttributes & FILE_ATTRIBUTE_NORMAL)
+	{
+		cout << "Normal (FILE_ATTRIBUTE_NORMAL)\n";
+	}
+	if (localFileAttributes & FILE_ATTRIBUTE_NOT_CONTENT_INDEXED)
+	{
+		cout << "Not indexed (FILE_ATTRIBUTE_NOT_CONTENT_INDEXED)\n";
+	}
+	/*if (localFileAttributes & FILE_ATTRIBUTE_NO_SCRUB_DATA)
+	{
+		cout << "Data stream not to be read by the data integrity scanner (FILE_ATTRIBUTE_NO_SCRUB_DATA)\n";
+	}*/
+	if (localFileAttributes & FILE_ATTRIBUTE_OFFLINE)
+	{
+		cout << "Don't avaliable immediatly (FILE_ATTRIBUTE_OFFLINE)\n";
+	}
+	if (localFileAttributes & FILE_ATTRIBUTE_READONLY)
+    {
+		cout << "Read-only (FILE_ATTRIBUTE_READONLY)\n";
+	}
+	/*if (localFileAttributes & FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS)
+	{
+		cout << "Data is not fully presented locally (FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS)\n";
+	}
+	if (localFileAttributes & FILE_ATTRIBUTE_RECALL_ON_OPEN)
+	{
+		cout << "Data hasn't physical representation on system (FILE_ATTRIBUTE_RECALL_ON_OPEN)\n";
+	}*/
+	if (localFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT)
+	{
+		cout << "Reparse point/representation link (FILE_ATTRIBUTE_REPARSE_POINT)\n";
+	}
+	if (localFileAttributes & FILE_ATTRIBUTE_SPARSE_FILE)
+	{
+		cout << "Sparse file (FILE_ATTRIBUTE_SPARSE_FILE)\n";
+	}
+	if (localFileAttributes & FILE_ATTRIBUTE_SYSTEM)
+	{
+		cout << "System used (FILE_ATTRIBUTE_SYSTEM)\n";
+	}
+	if (localFileAttributes & FILE_ATTRIBUTE_TEMPORARY)
+	{
+		cout << "Temporary storage (FILE_ATTRIBUTE_TEMPORARY)\n";
+	}
+	if (localFileAttributes & FILE_ATTRIBUTE_VIRTUAL)
+	{
+		cout << "Reserved for system (FILE_ATTRIBUTE_VIRTUAL)\n";
 	}
 }
