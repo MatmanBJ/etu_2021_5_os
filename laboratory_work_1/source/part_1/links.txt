@@ -1,0 +1,143 @@
+1:
+
+https://habr.com/ru/post/112286/
+
+https://yandex.ru/search/?from=chromesearch&clid=2242348&text=windows+file+api&lr=2
+
+https://www.helloworld.ru/texts/comp/lang/visualc/vc2/25.htm -- самая главная
+
+https://docs.microsoft.com/en-us/windows/win32/api/fileapi/
+
+http://cppstudio.com/post/396/
+
+https://learn.javascript.ru/switch
+
+https://stackoverflow.com/questions/5831320/stuck-with-api-getdrivetype
+
+2:
+
+http://rusproject.narod.ru/winapi/g/getdiskfreespace.html -- пример использовани€ функции
+
+https://cpp.hotexamples.com/ru/examples/-/-/GetDiskFreeSpaceEx/cpp-getdiskfreespaceex-function-examples.html -- тоже примеры использовани€ функции
+
+https://www.cyberforum.ru/win-api/thread277928.html
+
+http://rusproject.narod.ru/winapi/g/getdiskfreespace.html
+
+http://rusproject.narod.ru/winapi/g/getdiskfreespaceex.html
+
+https://www.cyberforum.ru/visual-cpp/thread979398.html
+
+https://www.installsetupconfig.com/win32programming/windowsdiskapis2_15.html
+
+3:
+
+http://cppstudio.com/post/9489/#:~:text=DWORD%20%E2%80%94%2032%2D%D0%B1%D0%B8%D1%82%D0%BD%D0%BE%D0%B5%20%D0%B1%D0%B5%D0%B7%D0%B7%D0%BD%D0%B0%D0%BA%D0%BE%D0%B2%D0%BE%D0%B5%20%D1%86%D0%B5%D0%BB%D0%BE%D0%B5,%3A%20unsigned%20long%20int%20%2C%20UINT%20. -- про типы данных
+
+https://metanit.com/cpp/tutorial/2.3.php -- ещё про типы данных
+
+https://www.cyberforum.ru/cpp-beginners/thread396119.html -- не использовалось
+
+https://firststeps.ru/mfc/winapi/r.php?107 -- про функцию "CreateDirectory"
+
+https://docs.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createdirectorya -- спецификация функции "CreateDirectory"
+
+https://stackoverflow.com/questions/8233842/how-to-check-if-directory-exist-using-c-and-winapi -- полезная функция
+
+https://stackoverflow.com/questions/905355/how-to-get-the-number-of-characters-in-a-stdstring -- тоже полезно
+
+https://firststeps.ru/mfc/winapi/r.php?109 -- про функцию "RemoveDirectory"
+
+https://docs.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-removedirectorya -- спецификация функции "RemoveDirectory"
+
+https://docs.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilea -- спецификация функции "CreateFile"
+
+https://firststeps.ru/mfc/winapi/r.php?97 -- про функцию "CreateFile"
+
+http://vsokovikov.narod.ru/New_MSDN_API/Menage_files/fn_createfile.htm -- на всякий случай
+
+http://vsokovikov.narod.ru/New_MSDN_API/Menage_files/fn_createfile.htm -- вроде бы полезно
+
+https://riptutorial.com/winapi/example/5736/create-a-file-and-write-to-it -- тоже полезно
+
+4:
+
+https://docs.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilea -- очень важные числа указаны здесь (вместо БУКАФ)
+
+https://docs.microsoft.com/ru-ru/windows/win32/winprog/windows-data-types -- про DWORD и КАКОЙ ЭТО ТИП ДАННЫХ
+
+http://w32api.narod.ru/functions/CreateFile.html -- ОООЧЕНЬ полезная штука, там про многие функции написано!!!
+
+https://www.geeksforgeeks.org/compiling-with-g-plus-plus/ -- тоже полезная статья про компоновку
+
+https://docs.microsoft.com/ru-ru/windows/win32/fileio/opening-a-file-for-reading-or-writing -- что-то есть
+
+https://eax.me/winapi-files/ -- тоже, возможно, что-то важное
+
+https://ru.stackoverflow.com/questions/724268/libgcc-s-dw2-1-dll-%D0%BD%D0%B5-%D0%BD%D0%B0%D0%B9%D0%B4%D0%B5%D0%BD -- хорошо подмечено про статическую компоновку
+
+https://gcc.gnu.org/onlinedocs/gcc/Link-Options.html -- написаны флаги (в том числе "-static")
+
+https://docs.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-movefile -- спецификация "MoveFile"
+
+https://docs.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-copyfile -- спецификация "CopyFile"
+
+5:
+
+https://docs.microsoft.com/ru-ru/windows/win32/winsock/overlapped-i-o-and-event-objects-2 -- на будущее, для задания 2 во 2 лабораторной работе
+
+https://www.issco.unige.ch/en/research/tutoriel-informatique/EN/copy_cut_delete_move_and_paste.html -- терминология работы с файлом
+
+https://docs.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-copyfile -- спецификация функции "CopyFile"
+
+https://docs.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-movefile -- спецификация функции "MoveFile"
+
+https://stackoverflow.com/questions/5355685/string-object-in-c -- как создать новую строку (новый объект строки)
+
+https://stackoverflow.com/questions/8520560/get-a-file-name-from-a-path -- как получить имя файла по его полному пути
+
+https://stackoverflow.com/questions/14737957/handling-command-line-flags-in-c-c -- очень хорошая статья про флаги (-<буква>) в терминале (и (!) аргументы в main())
+
+https://www.geeksforgeeks.org/initialize-a-vector-in-cpp-different-ways/ -- инициализация вектора
+
+https://stackoverflow.com/questions/14417513/liststring-in-c -- список/вектор
+
+https://stackoverflow.com/questions/14265581/parse-split-a-string-in-c-using-string-delimiter-standard-c -- разделение строк
+
+https://stackoverflow.com/questions/571394/how-to-find-out-if-an-item-is-present-in-a-stdvector -- найти элемент в векторе
+
+https://stackoverflow.com/questions/3385229/c-erase-vector-element-by-value-rather-than-by-position -- удалить элемент из вектора
+
+https://docs.microsoft.com/en-us/windows/win32/api/errhandlingapi/nf-errhandlingapi-getlasterror
+
+https://www.cplusplus.com/reference/algorithm/find/
+
+https://www.cplusplus.com/reference/vector/vector/end/
+
+https://stackoverflow.com/questions/7663709/how-can-i-convert-a-stdstring-to-int
+
+https://stackoverflow.com/questions/5838711/stdcin-input-with-spaces
+
+6:
+
+https://docs.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-getfileattributesa
+
+https://docs.microsoft.com/en-us/windows/win32/fileio/file-attribute-constants
+
+https://docs.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-setfileattributesa
+
+7:
+
+https://docs.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-getfileinformationbyhandle
+
+https://docs.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-getfileinformationbyhandle
+
+https://docs.microsoft.com/en-us/windows/win32/api/minwinbase/ne-minwinbase-file_info_by_handle_class
+
+http://www.vsokovikov.narod.ru/New_MSDN_API/Menage_files/fn_getfileinformationbyhandle.htm
+
+https://www.cyberforum.ru/visual-cpp/thread297397.html
+
+https://coderoad.ru/18040440/%D0%A0%D0%B0%D0%B7%D0%BD%D0%B8%D1%86%D0%B0-%D0%BC%D0%B5%D0%B6%D0%B4%D1%83-HANDLE-%D0%B8-HWND-%D0%B2-Windows-API
+
+https://docs.microsoft.com/en-us/windows/win32/api/handleapi/nf-handleapi-gethandleinformation
