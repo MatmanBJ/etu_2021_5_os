@@ -1,50 +1,34 @@
-#include <windows.h>
-#include <string>
-#include <iostream>
-#include <cstdlib>
+#include <iostream> // for everything
 
+#include <windows.h> // for API
+#include <string> // for tring usage
+
+#include <cstdlib>
 #include <ctime>
 #include <fstream>
 
 using namespace std;
 
-int genRndFile(std::string path, size_t bytes);
-
-std::string makeCodeForMatLab(unsigned *X, unsigned *Y, size_t n);
-
-std::string compute_md5(std::string path);
-
-void cpUI(std::string path, std::string target);
-
-DWORD cp(std::string path, std::string target, unsigned long long bs, unsigned long long thNum);
-
-DWORD readWrite(HANDLE in, HANDLE out, unsigned long long fileSize, unsigned long long bs, unsigned long long thNum);
-
-inline HANDLE openSrc(std::string path);
-
-inline HANDLE openDest(std::string path);
-
-void ULL2DWORDS(unsigned long long value, DWORD* l, DWORD* h);
-
-unsigned long long DWORDS2ULL(DWORD l, DWORD h);
-
-void CALLBACK FileIOCompletionRoutineIN(DWORD dwErrorCode, DWORD dwNumberOfBytesTransfered, LPOVERLAPPED lpOverlapped);
-
-void CALLBACK FileIOCompletionRoutineOUT(DWORD dwErrorCode, DWORD dwNumberOfBytesTransfered, LPOVERLAPPED lpOverlapped);
-
-unsigned long long getOverlappedNum(LPOVERLAPPED lpOverlapped);
-
-DWORD getDriveSectorSize();
-
-DWORD getDriveSectorSize(DWORD &sectorsPerCluster);
-
+int LocalFileGenerator (string path, size_t bytes);
 void CopyPaste (string path, string target);
-DWORD PreparingCopyPaste(string path, string target, unsigned long long bs, unsigned long long thNum);
-DWORD LocalCopyPaste (HANDLE in, HANDLE out, unsigned long long fileSize, unsigned long long bs, unsigned long long thNum);
+DWORD PreparingCopyPaste(string localOldFilePath, string localNewFilePath, unsigned long long localBlockSize, unsigned long long localOverlappedIOSize);
+DWORD LocalCopyPaste (HANDLE in, HANDLE out, unsigned long long fileSize, unsigned long long bs, unsigned long long localOverlappedIOSize);
+DWORD LocalDriveSectorSize ();
+DWORD LocalDriveSectorSize (DWORD &sectorsPerCluster);
+unsigned long long DWORDS2ULL(DWORD l, DWORD h);
+void ULL2DWORDS(unsigned long long value, DWORD* l, DWORD* h);
+void CALLBACK FileIOCompletionRoutineIN(DWORD dwErrorCode, DWORD dwNumberOfBytesTransfered, LPOVERLAPPED lpOverlapped);
+void CALLBACK FileIOCompletionRoutineOUT(DWORD dwErrorCode, DWORD dwNumberOfBytesTransfered, LPOVERLAPPED lpOverlapped);
+unsigned long long getOverlappedNum(LPOVERLAPPED lpOverlapped);
+inline HANDLE openSrc(string path);
+inline HANDLE openDest(string path);
 
 //Certutil -hashfile file
 
-//===============
+unsigned long long callback;
+unsigned long long firstAddr;
+unsigned long long oneSize;
+unsigned long long callLeft;
 
 /*
 Поменять эти значения на те, которые вам необходимы.
@@ -66,6 +50,32 @@ const unsigned bs_std = 16;
 const unsigned thNum_b = 1;
 const unsigned thNum_e = 15;
 
+// ---------- MAIN ----------
+
+int main(int argc, char **argv)
+{
+    if (argc != 4)
+    {
+        std::cout << "Syntax error. " << std::endl;
+        return -1;
+    }
+    else
+    {
+        const string oldFilePath(argv[1]);
+        const string newFilePath(argv[3]);
+        const size_t bytes_n = atoi(argv[2]);
+        
+        std::cout << "Generating file with random bytes (length = " << bytes_n << "): \"" << oldFilePath << "\"... " << std::endl;
+        LocalFileGenerator (oldFilePath, bytes_n);
+        std::cout << "Generating done. " << std::endl;
+        CopyPaste(oldFilePath, newFilePath);
+
+        return 0;
+    }
+}
+
+// ---------- FILE GENERATION FOR COPY TESTS ----------
+
 int LocalFileGenerator (string path, size_t bytes)
 {
     ofstream localFile (path, ios::out | ios::binary | ios::app);
@@ -81,15 +91,13 @@ int LocalFileGenerator (string path, size_t bytes)
     return 0;
 }
 
-//===============
-
 // ---------- COPY AND PASTE MAIN PROCESS ----------
 
 void CopyPaste (string path, string target)
 {
     DWORD time;
     DWORD sectorsPerCluster;
-    DWORD localSectorSize = getDriveSectorSize (sectorsPerCluster);
+    DWORD localSectorSize = LocalDriveSectorSize (sectorsPerCluster);
     unsigned long long localBlockSize; // size of the data block I will copy
     unsigned long long localOverlappedIOSize; // number of operations for Overlapped I/O
 
@@ -139,74 +147,67 @@ void CopyPaste (string path, string target)
 
 // ---------- PREPARING FOR COPY AND PASTE ACTIONS ----------
 
-DWORD PreparingCopyPaste(string path, string target, unsigned long long bs, unsigned long long localOverlappedIOSize)
+DWORD PreparingCopyPaste(string localOldFilePath, string localNewFilePath, unsigned long long localBlockSize, unsigned long long localOverlappedIOSize)
 {
     DWORD localActionTime = -1;
-
-    HANDLE src = openSrc(path);
-    HANDLE dest = openDest(target);
+    HANDLE localOldFileHandle = openSrc(localOldFilePath); // copied file path
+    HANDLE localNewFileHandle = openDest(localNewFilePath); // new file path
     WINBOOL closeSuccess;
 
-    if (src == NULL || src == INVALID_HANDLE_VALUE || dest == NULL || dest == INVALID_HANDLE_VALUE)
+    if (localOldFileHandle == NULL || localOldFileHandle == INVALID_HANDLE_VALUE || localNewFileHandle == NULL || localNewFileHandle == INVALID_HANDLE_VALUE)
     {
-        cout << "Problem with opening files. " << endl;
-        if (GetLastError())
-        {
-            cout << endl << "\tERROR: " << GetLastError() << endl;
-        }
+        cout << "Problem with opening files!\n";
+        cout << "\nError message: " << GetLastError() << "\n";
     }
     else
     {
         DWORD hSize;
-        DWORD lSize = GetFileSize(src, &hSize);
+        DWORD lSize = GetFileSize(localOldFileHandle, &hSize);
         unsigned long long fileSize = DWORDS2ULL(lSize, hSize);
 
         // DEBUG
         ////fileSize = fileSize | ((unsigned long long)hSize << 32);
-        //cout << "Size of the file \"" << path << "\" is " << fileSize << ". " << endl;
+        //cout << "Size of the file \"" << localOldFilePath << "\" is " << fileSize << ". " << endl;
         //DWORD fi, si;
         //ULL2DWORDS(fileSize, &fi, &si);
         //cout << "Check: " << fi << " == " << lSize << ". " << endl;
         //cout << "Check: " << si << " == " << hSize << ". " << endl;
 
-        localActionTime = LocalCopyPaste(src, dest, fileSize, bs, localOverlappedIOSize);
+        localActionTime = LocalCopyPaste(localOldFileHandle, localNewFileHandle, fileSize, localBlockSize, localOverlappedIOSize);
     }
 
-    if( !(src == NULL || src == INVALID_HANDLE_VALUE) )
+    // Checking handle and closing the file
+    if (localOldFileHandle != NULL && localOldFileHandle != INVALID_HANDLE_VALUE) // old file checking
     {
-        closeSuccess = CloseHandle(src);
-        if(closeSuccess)
+        closeSuccess = CloseHandle (localOldFileHandle);
+        if (closeSuccess)
         {
             // DEBUG
-            // cout << endl << "File \"" << src << "\" closed successfully. " << endl;
+            // cout << endl << "File \"" << localOldFileHandle << "\" closed successfully. " << endl;
             closeSuccess = 1;
         }
         else
         {
-            cout << "Problem with closing file \"" << src << "\". " << endl;
+            cout << "Problem with closing file \"" << localOldFileHandle << "\". " << endl;
         }
     }
-    if( !(dest == NULL || dest == INVALID_HANDLE_VALUE) )
+    if (localNewFileHandle != NULL && localNewFileHandle != INVALID_HANDLE_VALUE) // new file checking
     {
-        closeSuccess = CloseHandle(dest);
-        if(closeSuccess)
+        closeSuccess = CloseHandle (localNewFileHandle);
+        if (closeSuccess)
         {
             // DEBUG
-            //cout << endl << "File \"" << dest << "\" closed successfully. " << endl;
+            //cout << endl << "File \"" << localNewFileHandle << "\" closed successfully. " << endl;
             closeSuccess = 1;
         }
         else
         {
-            cout << "Problem with closing file \"" << dest << "\". " << endl;
+            cout << "Problem with closing file \"" << localNewFileHandle << "\". " << endl;
         }
     }
+
     return localActionTime;
 }
-
-unsigned long long callback;
-unsigned long long firstAddr;
-unsigned long long oneSize;
-unsigned long long callLeft;
 
 // ---------- COPY AND PASTE ACTIONS DIRECTLY ----------
 
@@ -267,7 +268,7 @@ DWORD LocalCopyPaste (HANDLE in, HANDLE out, unsigned long long fileSize, unsign
         {
             localOverlappedIOSize = fileSize / bs;
             leftelse = (fileSize%bs == 0?0:1);
-            bsLeft = getDriveSectorSize();
+            bsLeft = LocalDriveSectorSize();
             bsLeft = ( (fileSize%bs)/bsLeft + 1) * bsLeft;
             //bsLeft = fileSize%bs;
 
@@ -344,17 +345,17 @@ DWORD LocalCopyPaste (HANDLE in, HANDLE out, unsigned long long fileSize, unsign
 
 // ---------- GET DRIVE SECTOR SIZE ----------
 
-DWORD getDriveSectorSize()
+DWORD LocalDriveSectorSize()
 {
     DWORD localBuffer = -1;
     DWORD bytesPerSector = -1;
-    bytesPerSector = getDriveSectorSize(localBuffer);
+    bytesPerSector = LocalDriveSectorSize(localBuffer);
     return bytesPerSector;
 }
 
 // ---------- GET DRIVE SECTOR SIZE OVERLOAD ----------
 
-DWORD getDriveSectorSize (DWORD &sectorsPerCluster)
+DWORD LocalDriveSectorSize (DWORD &sectorsPerCluster)
 {
     DWORD totalNumberOfClusters = -1;
     //DWORD sectorsPerCluster = -1;
@@ -363,7 +364,7 @@ DWORD getDriveSectorSize (DWORD &sectorsPerCluster)
     WINBOOL getSpaceSuccess = GetDiskFreeSpaceA(NULL, &sectorsPerCluster, &bytesPerSector, &numberOfFreeClusters, &totalNumberOfClusters);
     if(!getSpaceSuccess)
     {
-        cout << "\t!!! An error occurred while getting information about the disk space !!!" << endl;
+        cout << "\n!!! An error occurred while getting information about the disk space !!!\n";
     }
     return bytesPerSector;
 }
@@ -423,28 +424,4 @@ inline HANDLE openDest(string path)
     HANDLE res = NULL;
     res = CreateFileA(path.c_str(), GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_FLAG_OVERLAPPED | FILE_FLAG_NO_BUFFERING, NULL);
     return res;
-}
-
-// ---------- MAIN ----------
-
-int main(int argc, char **argv)
-{
-    if (argc != 4)
-    {
-        std::cout << "Syntax error. " << std::endl;
-        return -1;
-    }
-    else
-    {
-        const string oldFilePath(argv[1]);
-        const string newFilePath(argv[3]);
-        const size_t bytes_n = atoi(argv[2]);
-        
-        std::cout << "Generating file with random bytes (length = " << bytes_n << "): \"" << oldFilePath << "\"... " << std::endl;
-        LocalFileGenerator (oldFilePath, bytes_n);
-        std::cout << "Generating done. " << std::endl;
-        CopyPaste(oldFilePath, newFilePath);
-
-        return 0;
-    }
 }
