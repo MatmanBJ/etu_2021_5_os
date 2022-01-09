@@ -1,8 +1,6 @@
 #include <iostream> // for everything
-
 #include <windows.h> // for API
 #include <string> // for tring usage
-
 #include <cstdlib>
 #include <ctime>
 #include <fstream>
@@ -17,11 +15,12 @@ DWORD LocalDriveSectorSize ();
 DWORD LocalDriveSectorSize (DWORD &sectorsPerCluster);
 unsigned long long DWORDS2ULL(DWORD l, DWORD h);
 void ULL2DWORDS(unsigned long long value, DWORD* l, DWORD* h);
-void CALLBACK FileIOCompletionRoutineIN(DWORD dwErrorCode, DWORD dwNumberOfBytesTransfered, LPOVERLAPPED lpOverlapped);
-void CALLBACK FileIOCompletionRoutineOUT(DWORD dwErrorCode, DWORD dwNumberOfBytesTransfered, LPOVERLAPPED lpOverlapped);
+void CALLBACK CompletionRoutine(DWORD dwErrorCode, DWORD dwNumberOfBytesTransfered, LPOVERLAPPED lpOverlapped);
+//void CALLBACK FileIOCompletionRoutineIN(DWORD dwErrorCode, DWORD dwNumberOfBytesTransfered, LPOVERLAPPED lpOverlapped);
+//void CALLBACK FileIOCompletionRoutineOUT(DWORD dwErrorCode, DWORD dwNumberOfBytesTransfered, LPOVERLAPPED lpOverlapped);
 unsigned long long getOverlappedNum(LPOVERLAPPED lpOverlapped);
-inline HANDLE openSrc(string path);
-inline HANDLE openDest(string path);
+inline HANDLE MyOpenOldFile(string path);
+inline HANDLE MyOpenNewFile(string path);
 
 //Certutil -hashfile file
 
@@ -54,23 +53,22 @@ const unsigned thNum_e = 15;
 
 int main(int argc, char **argv)
 {
-    if (argc != 4)
+    if (argc == 4)
     {
-        std::cout << "Syntax error. " << std::endl;
-        return -1;
+    	const unsigned long oldFileBytes = atoi(argv[2]);
+        const string oldFilePath(argv[1]);
+        const string newFilePath(argv[3]);
+        LocalFileGenerator (oldFilePath, oldFileBytes);
+        std::cout << "Created file number of bytes: " << oldFileBytes << " Created file path: " << oldFilePath << "\n";
+        CopyPaste(oldFilePath, newFilePath);
+        std::cout << "Copied file path: " << oldFilePath << " Pasted file path: " << newFilePath << "\n";
+
+        return 0;
     }
     else
     {
-        const string oldFilePath(argv[1]);
-        const string newFilePath(argv[3]);
-        const size_t bytes_n = atoi(argv[2]);
-        
-        std::cout << "Generating file with random bytes (length = " << bytes_n << "): \"" << oldFilePath << "\"... " << std::endl;
-        LocalFileGenerator (oldFilePath, bytes_n);
-        std::cout << "Generating done. " << std::endl;
-        CopyPaste(oldFilePath, newFilePath);
-
-        return 0;
+    	cout << "Incorrect start of executable file. Please, check your flags!\n";
+        return -1;
     }
 }
 
@@ -150,9 +148,10 @@ void CopyPaste (string path, string target)
 DWORD PreparingCopyPaste(string localOldFilePath, string localNewFilePath, unsigned long long localBlockSize, unsigned long long localOverlappedIOSize)
 {
     DWORD localActionTime = -1;
-    HANDLE localOldFileHandle = openSrc(localOldFilePath); // copied file path
-    HANDLE localNewFileHandle = openDest(localNewFilePath); // new file path
-    WINBOOL closeSuccess;
+    
+    HANDLE localOldFileHandle = CreateFileA(localOldFilePath.c_str(), GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_FLAG_OVERLAPPED | FILE_FLAG_NO_BUFFERING, NULL); // copied file path
+    HANDLE localNewFileHandle = CreateFileA(localNewFilePath.c_str(), GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_FLAG_OVERLAPPED | FILE_FLAG_NO_BUFFERING, NULL); // new file path
+    bool localCloseFile;
 
     if (localOldFileHandle == NULL || localOldFileHandle == INVALID_HANDLE_VALUE || localNewFileHandle == NULL || localNewFileHandle == INVALID_HANDLE_VALUE)
     {
@@ -165,26 +164,16 @@ DWORD PreparingCopyPaste(string localOldFilePath, string localNewFilePath, unsig
         DWORD lSize = GetFileSize(localOldFileHandle, &hSize);
         unsigned long long fileSize = DWORDS2ULL(lSize, hSize);
 
-        // DEBUG
-        ////fileSize = fileSize | ((unsigned long long)hSize << 32);
-        //cout << "Size of the file \"" << localOldFilePath << "\" is " << fileSize << ". " << endl;
-        //DWORD fi, si;
-        //ULL2DWORDS(fileSize, &fi, &si);
-        //cout << "Check: " << fi << " == " << lSize << ". " << endl;
-        //cout << "Check: " << si << " == " << hSize << ". " << endl;
-
         localActionTime = LocalCopyPaste(localOldFileHandle, localNewFileHandle, fileSize, localBlockSize, localOverlappedIOSize);
     }
 
     // Checking handle and closing the file
     if (localOldFileHandle != NULL && localOldFileHandle != INVALID_HANDLE_VALUE) // old file checking
     {
-        closeSuccess = CloseHandle (localOldFileHandle);
-        if (closeSuccess)
+        localCloseFile = CloseHandle (localOldFileHandle);
+        if (localCloseFile)
         {
-            // DEBUG
-            // cout << endl << "File \"" << localOldFileHandle << "\" closed successfully. " << endl;
-            closeSuccess = 1;
+            localCloseFile = 1;
         }
         else
         {
@@ -193,12 +182,10 @@ DWORD PreparingCopyPaste(string localOldFilePath, string localNewFilePath, unsig
     }
     if (localNewFileHandle != NULL && localNewFileHandle != INVALID_HANDLE_VALUE) // new file checking
     {
-        closeSuccess = CloseHandle (localNewFileHandle);
-        if (closeSuccess)
+        localCloseFile = CloseHandle (localNewFileHandle);
+        if (localCloseFile)
         {
-            // DEBUG
-            //cout << endl << "File \"" << localNewFileHandle << "\" closed successfully. " << endl;
-            closeSuccess = 1;
+            localCloseFile = 1;
         }
         else
         {
@@ -244,18 +231,12 @@ DWORD LocalCopyPaste (HANDLE in, HANDLE out, unsigned long long fileSize, unsign
     oneSize = sizeof(OVERLAPPED);
     callLeft = (unsigned long long)overLeft;
 
-    // DEBUG
-    //int gi = 0;
-
     //localActionTime = timeGetTime();
     // ETO NUZHNO ISPRAVIT'
     localActionTime = 0;
 
     do
     {
-        // DEBUG
-        //cout << "Iter " << gi++ << ": " << endl;
-
         if(bs*localOverlappedIOSize <= fileSize)
         {
             for (unsigned long long i = 0; i < localOverlappedIOSize; ++i)
@@ -270,7 +251,6 @@ DWORD LocalCopyPaste (HANDLE in, HANDLE out, unsigned long long fileSize, unsign
             leftelse = (fileSize%bs == 0?0:1);
             bsLeft = LocalDriveSectorSize();
             bsLeft = ( (fileSize%bs)/bsLeft + 1) * bsLeft;
-            //bsLeft = fileSize%bs;
 
             for (unsigned long long i = 0; i < localOverlappedIOSize; ++i)
             {
@@ -289,11 +269,11 @@ DWORD LocalCopyPaste (HANDLE in, HANDLE out, unsigned long long fileSize, unsign
         callback = 0;
         for(unsigned long long i = 0; i < localOverlappedIOSize; ++i)
         {
-            ReadFileEx(in, localBuffer[i], bs, &over[i], FileIOCompletionRoutineIN);
+            ReadFileEx(in, localBuffer[i], bs, &over[i], CompletionRoutine);
         }
         if(leftelse)
         {
-            ReadFileEx(in, localBufferLeft, bsLeft, overLeft, FileIOCompletionRoutineIN);
+            ReadFileEx(in, localBufferLeft, bsLeft, overLeft, CompletionRoutine);
         }
         while (callback < localOverlappedIOSize + leftelse)
         {
@@ -303,11 +283,11 @@ DWORD LocalCopyPaste (HANDLE in, HANDLE out, unsigned long long fileSize, unsign
         callback = 0;
         for(unsigned long long i = 0; i < localOverlappedIOSize; ++i)
         {
-            WriteFileEx(out, localBuffer[i], bs, &over[i], FileIOCompletionRoutineOUT);
+            WriteFileEx(out, localBuffer[i], bs, &over[i], CompletionRoutine);
         }
         if(leftelse)
         {
-            WriteFileEx(out, localBufferLeft, bsLeft, overLeft, FileIOCompletionRoutineOUT);
+            WriteFileEx(out, localBufferLeft, bsLeft, overLeft, CompletionRoutine);
         }
         while (callback < localOverlappedIOSize + leftelse)
         {
@@ -358,7 +338,6 @@ DWORD LocalDriveSectorSize()
 DWORD LocalDriveSectorSize (DWORD &sectorsPerCluster)
 {
     DWORD totalNumberOfClusters = -1;
-    //DWORD sectorsPerCluster = -1;
     DWORD bytesPerSector = -1;
     DWORD numberOfFreeClusters = -1;
     WINBOOL getSpaceSuccess = GetDiskFreeSpaceA(NULL, &sectorsPerCluster, &bytesPerSector, &numberOfFreeClusters, &totalNumberOfClusters);
@@ -383,19 +362,21 @@ void ULL2DWORDS(unsigned long long value, DWORD* l, DWORD* h)
     *h = value >> 32;
 }
 
-void CALLBACK FileIOCompletionRoutineIN(DWORD dwErrorCode, DWORD dwNumberOfBytesTransfered, LPOVERLAPPED lpOverlapped)
+// for read file ex
+void CALLBACK CompletionRoutine (DWORD dwErrorCode, DWORD dwNumberOfBytesTransfered, LPOVERLAPPED lpOverlapped)
 {
-    // DEBUG
-    //cout << "Read " << getOverlappedNum(lpOverlapped) << " done. " << endl;
-    ++callback;
+	callback = callback + 1;
+}
+
+/*void CALLBACK FileIOCompletionRoutineIN(DWORD dwErrorCode, DWORD dwNumberOfBytesTransfered, LPOVERLAPPED lpOverlapped)
+{
+	callback = callback + 1;
 }
 
 void CALLBACK FileIOCompletionRoutineOUT(DWORD dwErrorCode, DWORD dwNumberOfBytesTransfered, LPOVERLAPPED lpOverlapped)
 {
-    // DEBUG
-    //cout << "Write " << getOverlappedNum(lpOverlapped) << " done. " << endl;
-    ++callback;
-}
+    callback = callback + 1;
+}*/
 
 unsigned long long getOverlappedNum(LPOVERLAPPED lpOverlapped)
 {
@@ -412,16 +393,16 @@ unsigned long long getOverlappedNum(LPOVERLAPPED lpOverlapped)
     return res;
 }
 
-inline HANDLE openSrc(string path)
+/*inline HANDLE MyOpenOldFile(string path)
 {
     HANDLE res = NULL;
     res = CreateFileA(path.c_str(), GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_FLAG_OVERLAPPED | FILE_FLAG_NO_BUFFERING, NULL);
     return res;
 }
 
-inline HANDLE openDest(string path)
+inline HANDLE MyOpenNewFile(string path)
 {
     HANDLE res = NULL;
     res = CreateFileA(path.c_str(), GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_FLAG_OVERLAPPED | FILE_FLAG_NO_BUFFERING, NULL);
     return res;
-}
+}*/
