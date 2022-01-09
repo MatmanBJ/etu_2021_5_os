@@ -57,6 +57,8 @@ int LocalFileGenerator (string path, size_t bytes)
 
 //===============
 
+// ---------- COPY AND PASTE MAIN PROCESS ----------
+
 void CopyPaste (string path, string target)
 {
     DWORD time;
@@ -84,7 +86,6 @@ void CopyPaste (string path, string target)
         bsY[i_bsXY] = time;
     }
 
-
     //=====bs = bs_std, thNum = x, time = y=====
     const size_t n_thXY = thNum_e - thNum_b + 1;
     unsigned thX[n_bsXY];
@@ -102,6 +103,8 @@ void CopyPaste (string path, string target)
     }
 }
 
+// ---------- PREPARING FOR COPY AND PASTE ACTIONS ----------
+
 DWORD PreparingCopyPaste(string path, string target, unsigned long long bs, unsigned long long thNum)
 {
     DWORD localActionTime = -1;
@@ -114,7 +117,9 @@ DWORD PreparingCopyPaste(string path, string target, unsigned long long bs, unsi
     {
         cout << "Problem with opening files. " << endl;
         if (GetLastError())
+        {
             cout << endl << "\tERROR: " << GetLastError() << endl;
+        }
     }
     else
     {
@@ -122,14 +127,13 @@ DWORD PreparingCopyPaste(string path, string target, unsigned long long bs, unsi
         DWORD lSize = GetFileSize(src, &hSize);
         unsigned long long fileSize = DWORDS2ULL(lSize, hSize);
 
-        #ifdef cpeDEBUG
-        //fileSize = fileSize | ((unsigned long long)hSize << 32);
-        cout << "Size of the file \"" << path << "\" is " << fileSize << ". " << endl;
-        DWORD fi, si;
-        ULL2DWORDS(fileSize, &fi, &si);
-        cout << "Check: " << fi << " == " << lSize << ". " << endl;
-        cout << "Check: " << si << " == " << hSize << ". " << endl;
-        #endif
+        // DEBUG
+        ////fileSize = fileSize | ((unsigned long long)hSize << 32);
+        //cout << "Size of the file \"" << path << "\" is " << fileSize << ". " << endl;
+        //DWORD fi, si;
+        //ULL2DWORDS(fileSize, &fi, &si);
+        //cout << "Check: " << fi << " == " << lSize << ". " << endl;
+        //cout << "Check: " << si << " == " << hSize << ". " << endl;
 
         localActionTime = LocalCopyPaste(src, dest, fileSize, bs, thNum);
     }
@@ -139,26 +143,28 @@ DWORD PreparingCopyPaste(string path, string target, unsigned long long bs, unsi
         closeSuccess = CloseHandle(src);
         if(closeSuccess)
         {
-            #ifdef cpDEBUG
-            cout << endl << "File \"" << src << "\" closed successfully. " << endl;
-            #endif
+            // DEBUG
+            // cout << endl << "File \"" << src << "\" closed successfully. " << endl;
             closeSuccess = 1;
         }
         else
+        {
             cout << "Problem with closing file \"" << src << "\". " << endl;
+        }
     }
     if( !(dest == NULL || dest == INVALID_HANDLE_VALUE) )
     {
         closeSuccess = CloseHandle(dest);
         if(closeSuccess)
         {
-            #ifdef cpDEBUG
-            cout << endl << "File \"" << dest << "\" closed successfully. " << endl;
-            #endif
+            // DEBUG
+            //cout << endl << "File \"" << dest << "\" closed successfully. " << endl;
             closeSuccess = 1;
         }
         else
+        {
             cout << "Problem with closing file \"" << dest << "\". " << endl;
+        }
     }
     return localActionTime;
 }
@@ -174,11 +180,6 @@ DWORD LocalCopyPaste (HANDLE in, HANDLE out, unsigned long long fileSize, unsign
 {
     DWORD localActionTime = -1;
 
-    if (fileSize <= 0)
-    {
-        return localActionTime;
-    }
-
     unsigned long long offset_i = 0;
 
     OVERLAPPED* over = NULL;
@@ -189,10 +190,17 @@ DWORD LocalCopyPaste (HANDLE in, HANDLE out, unsigned long long fileSize, unsign
     unsigned long long bsLeft = 0;
     int leftelse = 0;
 
+    if (fileSize <= 0)
+    {
+        return localActionTime;
+    }
+
     over = new OVERLAPPED[thNum];
     buff = new char*[thNum];
     for (unsigned long long i = 0; i < thNum; ++i)
+    {
         buff[i] = new char[bs];
+    }
 
     overLeft = (OVERLAPPED*)malloc(sizeof(OVERLAPPED));
     buffLeft = (char*)malloc(sizeof(char)*bs);
@@ -201,17 +209,17 @@ DWORD LocalCopyPaste (HANDLE in, HANDLE out, unsigned long long fileSize, unsign
     oneSize = sizeof(OVERLAPPED);
     callLeft = (unsigned long long)overLeft;
 
-    #ifdef cpDEBUG
-    int gi = 0;
-    #endif
+    // DEBUG
+    //int gi = 0;
+
     //localActionTime = timeGetTime();
     // ETO NUZHNO ISPRAVIT'
     localActionTime = 0;
+
     do
     {
-        #ifdef cpDEBUG
-        cout << "Iter " << gi++ << ": " << endl;
-        #endif
+        // DEBUG
+        //cout << "Iter " << gi++ << ": " << endl;
 
         if(bs*thNum <= fileSize)
         {
@@ -248,9 +256,13 @@ DWORD LocalCopyPaste (HANDLE in, HANDLE out, unsigned long long fileSize, unsign
             ReadFileEx(in, buff[i], bs, &over[i], FileIOCompletionRoutineIN);
         }
         if(leftelse)
+        {
             ReadFileEx(in, buffLeft, bsLeft, overLeft, FileIOCompletionRoutineIN);
+        }
         while (callback < thNum + leftelse)
+        {
             SleepEx(-1, TRUE);
+        }
 
         callback = 0;
         for(unsigned long long i = 0; i < thNum; ++i)
@@ -258,10 +270,15 @@ DWORD LocalCopyPaste (HANDLE in, HANDLE out, unsigned long long fileSize, unsign
             WriteFileEx(out, buff[i], bs, &over[i], FileIOCompletionRoutineOUT);
         }
         if(leftelse)
+        {
             WriteFileEx(out, buffLeft, bsLeft, overLeft, FileIOCompletionRoutineOUT);
+        }
         while (callback < thNum + leftelse)
+        {
             SleepEx(-1, TRUE);
-    }while(offset_i < fileSize-1);
+        }
+    }
+    while(offset_i < fileSize-1);
     //localActionTime = timeGetTime() - localActionTime;
     // ETO NUZHNO IPPRAVIT'
     localActionTime = 0;
@@ -273,14 +290,20 @@ DWORD LocalCopyPaste (HANDLE in, HANDLE out, unsigned long long fileSize, unsign
     SetEndOfFile(out);
 
     //CLEAN
-    for(unsigned long long i = 0; i < thNum; ++i)
+    for (unsigned long long i = 0; i < thNum; ++i)
+    {
         delete buff[i];
+    }
     delete buff;
     delete over;
-    if(buffLeft)
-        free(buffLeft);
-    if(overLeft)
-        free(overLeft);
+    if (buffLeft)
+    {
+        free (buffLeft);
+    }
+    if (overLeft)
+    {
+        free (overLeft);
+    }
     return localActionTime;
 }
 
@@ -326,17 +349,15 @@ void ULL2DWORDS(unsigned long long value, DWORD* l, DWORD* h)
 
 void CALLBACK FileIOCompletionRoutineIN(DWORD dwErrorCode, DWORD dwNumberOfBytesTransfered, LPOVERLAPPED lpOverlapped)
 {
-    #ifdef cpDEBUG
-    cout << "Read " << getOverlappedNum(lpOverlapped) << " done. " << endl;
-    #endif
+    // DEBUG
+    //cout << "Read " << getOverlappedNum(lpOverlapped) << " done. " << endl;
     ++callback;
 }
 
 void CALLBACK FileIOCompletionRoutineOUT(DWORD dwErrorCode, DWORD dwNumberOfBytesTransfered, LPOVERLAPPED lpOverlapped)
 {
-    #ifdef cpDEBUG
-    cout << "Write " << getOverlappedNum(lpOverlapped) << " done. " << endl;
-    #endif
+    // DEBUG
+    //cout << "Write " << getOverlappedNum(lpOverlapped) << " done. " << endl;
     ++callback;
 }
 
@@ -344,10 +365,14 @@ unsigned long long getOverlappedNum(LPOVERLAPPED lpOverlapped)
 {
     unsigned long long res;
     unsigned long long overAddr = (unsigned long long)lpOverlapped;
-    if(overAddr == callLeft)
+    if (overAddr == callLeft)
+    {
         res = 0;
+    }
     else
+    {
         res = (overAddr - firstAddr) / oneSize + 1;
+    }
     return res;
 }
 
@@ -384,7 +409,7 @@ int main(int argc, char **argv)
         LocalFileGenerator (oldFilePath, bytes_n);
         std::cout << "Generating done. " << std::endl;
         CopyPaste(oldFilePath, newFilePath);
-        
+
         return 0;
     }
 }
