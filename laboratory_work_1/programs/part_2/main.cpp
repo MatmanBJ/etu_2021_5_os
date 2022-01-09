@@ -17,7 +17,6 @@ void CopyPaste (string localOldFilePath, string localNewFilePath);
 DWORD PreparingCopyPaste(string localOldFilePath, string localNewFilePath, unsigned long long localBlockSize, unsigned long long localOverlappedIOSize);
 void LocalReadWrite(long long fileSize, DWORD blockSize, int localOperationsCounter, OVERLAPPED* overlappeds, CHAR** buffer, HANDLE fileHandle, char f);
 DWORD LocalDriveSectorSize ();
-DWORD LocalDriveSectorSize (DWORD &localSectorsPerCluster);
 void CALLBACK CompletionRoutine(DWORD dwErrorCode, DWORD dwNumberOfBytesTransfered, LPOVERLAPPED lpOverlapped);
 
 //Certutil -hashfile file
@@ -77,9 +76,7 @@ int LocalFileGenerator (string localOldFilePath, unsigned long long localBytesRe
 
 void CopyPaste (string localOldFilePath, string localNewFilePath)
 {
-    //DWORD time;
-    DWORD sectorsPerCluster;
-    DWORD localSectorSize = LocalDriveSectorSize (sectorsPerCluster);
+    DWORD localSectorSize = LocalDriveSectorSize ();
     unsigned long long localBlockSize; // size of the data block I will copy
 
     cout << "Drive sector size: " << localSectorSize << " bytes\n";
@@ -220,17 +217,9 @@ void LocalReadWrite(long long fileSize, DWORD blockSize, int localOperationsCoun
 
 // ---------- GET DRIVE SECTOR SIZE ----------
 
-DWORD LocalDriveSectorSize()
+DWORD LocalDriveSectorSize ()
 {
-    DWORD localBytes = -1;
-    DWORD localValue = -1;
-    return localBytes = LocalDriveSectorSize(localValue);
-}
-
-// ---------- GET DRIVE SECTOR SIZE (MAIN OVERLOAD FUNCTION) ----------
-
-DWORD LocalDriveSectorSize (DWORD &localSectorsPerCluster)
-{
+	DWORD localSectorsPerCluster;
     DWORD localNumberOfClusters = -1;
     DWORD localBytesPerSector = -1;
     DWORD localNumberOfFreeClusters = -1;
