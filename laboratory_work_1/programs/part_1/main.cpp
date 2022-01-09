@@ -1,5 +1,18 @@
-#include <windows.h> // i just needed this thing to read "GetDriveType" function
-//#include "fileapi.h" // first of all i thought, that i need this, but i don't need that header file
+/*
+
+Saint Petersburg Electrotechnical University "LETI" (ETU "LETI"),
+Faculty of Computer Science and Technology "FKTI",
+Department of Computer Science and Engineering,
+Computer Systems Engineering and Informatics (09.03.01) program.
+
+OS labortory work 1
+
+Copyight (c) 2021 Sobolev Matvey Sergeevich
+
+This software is under MIT License (X11 License).
+You can see a detailed description in "LICENSE.md" file.
+
+*/
 
 /*
 
@@ -8,13 +21,78 @@ API means "Application Programming Interface"
 
 */
 
-#include <iostream>
+#include <windows.h> // for WinAPI functions
+#include <iostream> // just for working
+#include <string> // for "string" type using
 
 using namespace std;
 
+/*void DiskInfoMenu ()
+{
+	cout << "Please, choose the disk info menu item:" << "\n" << "1 -- Show all avaliable disk drives" << "\n" << "2 -- Show the drive type" << "\n";
+}*/
+
+string GetDiskName();
+void MainMenu ();
+void MyGetLogicalDrives ();
+void MyGetDriveType ();
+void MyGetVolumeInformation ();
+
+int main ()
+{
+	// "GET CURRENT DIRECTORY", "SET CURRENT DIRECTORY"
+
+	int flag = 0;
+
+	do
+	{
+		MainMenu();
+		cin >> flag;
+		cout << "\n";
+		switch (flag)
+		{
+			case 0:
+				cout << "Goodbye!";
+				break;
+			case 1:
+				MyGetLogicalDrives();
+				break;
+			case 2:
+				MyGetDriveType();
+				break;
+			case 3:
+				MyGetVolumeInformation();
+				break;
+			default:
+				cout << "Incorrect input! Try again.";
+				break;
+		}
+	}
+	while (flag != 0);
+
+	return 0;
+}
+
+string GetDiskName ()
+{
+	string localDisk;
+
+	cout << "Please, input disk name you want:\n";
+	cin >> localDisk;
+	localDisk = localDisk + ":\\";
+
+	return localDisk;
+}
+
 void MainMenu ()
 {
-	cout << "Please, choose the menu item:" << "\n" << "1 -- Show all avaliable disk drives" << "\n" << "2 -- Show the drive type" << "\n";
+	cout << "\n";
+	cout << "Please, choose the menu item:\n";
+	cout << "0 -- Quit\n";
+	cout << "1 -- Show all avaliable disk drives\n";
+	cout << "2 -- Show the drive type\n";
+	cout << "3 -- Show the volume information\n";
+	cout << "\n";
 }
 
 void MyGetLogicalDrives()
@@ -39,18 +117,18 @@ void MyGetLogicalDrives()
 
 void MyGetDriveType()
 {
-	//using namespace uint;
+	// i need to check, if i use the "uint" namespace
 
 	int d;
-	
-	//d = GetDriveType("c:\\"); // i just want to know what's going one if i choose d or f!
-	//cout << "c:\\ is";
+	string n;
 
-	d = GetDriveType("d:\\"); // i just want to know what's going one if i choose d or f!
-	cout << "d:\\ is";
+	n = GetDiskName();
 
-	//d = GetDriveType("f:\\"); // i just want to know what's going one if i choose d or f!
-	//cout << "f:\\ is";
+	// <string variable>.c_str() means that you convert to <const char * type>, because "" isn't <const char *> type
+
+	d = GetDriveType(n.c_str()); // i just want to know what's going one if i choose d or f!
+	cout << n << " is";
+	//cout << n + " is";
 
 	if (d == DRIVE_UNKNOWN)
 	{
@@ -68,14 +146,6 @@ void MyGetDriveType()
 	{
 		cout << " FIXED" << endl;
 	}
-	/*if (d == LMEM_FIXED)
-	{
-		cout << " FIXED" << endl;
-	}
-	if (d == FILE_CREATE)
-	{
-		cout << " REMOTE" << endl;
-	}*/
 	if (d == DRIVE_REMOTE)
 	{
 		cout << " REMOTE" << endl;
@@ -90,63 +160,42 @@ void MyGetDriveType()
 	}
 }
 
-int main()
+void MyGetVolumeInformation ()
 {
-	//cout << "Test!";
+	char VolumeNameBuffer[100]; 
+	char FileSystemNameBuffer[100];
+	string n;
+	unsigned long VolumeSerialNumber;
 
-	// "GET CURRENT DIRECTORY", "SET CURRENT DIRECTORY"
+	n = GetDiskName();
 
-	int flag = 0;
+	BOOL GetVolumeInformationFlag = GetVolumeInformationA(
+		n.c_str(),
+		VolumeNameBuffer,
+		100,
+		&VolumeSerialNumber,
+		NULL, //&MaximumComponentLength,
+		NULL, //&FileSystemFlags,
+		FileSystemNameBuffer,
+		100
+	);
 
-	do
-	{
-		MainMenu();
-		cin >> flag;
-		switch (flag)
-		{
-			case 1:
-				MyGetLogicalDrives();
-				break;
-			case 2:
-				MyGetDriveType();
-				break;
-			default:
-				break;
-		}
-	}
-	while (flag != 0);
+	/*BOOL GetVolumeInformationFlag = GetVolumeInformationA(
+		"d:\\",
+		VolumeNameBuffer,
+		100,
+		&VolumeSerialNumber,
+		NULL, //&MaximumComponentLength,
+		NULL, //&FileSystemFlags,
+		FileSystemNameBuffer,
+		100
+	);*/
 
-	/*uint :: int d;
-	
-	uint :: d = GetDriveType("c:\\");
-	if (uint :: d == uint :: DRIVE_UNKNOWN)
+	if (GetVolumeInformationFlag != 0) 
 	{
-		cout << " UNKNOWN" << endl;
+		cout << " Volume Name is " << VolumeNameBuffer << endl;
+		cout << " Volume Serial Number is " << VolumeSerialNumber << endl;
+		cout << " File System is " << FileSystemNameBuffer << endl;
 	}
-	if (uint :: d == uint :: DRIVE_NO_ROOT_DIR)
-	{
-		cout << " DRIVE NO ROOT DIR" << endl;
-	}
-	if (uint :: d == uint :: DRIVE_REMOVABLE)
-	{
-		cout << " REMOVABLE" << endl;
-	}
-	if (uint :: d == uint :: DRIVE_FIXED)
-	{
-		cout << " FIXED" << endl;
-	}
-	if (uint :: d == uint :: DRIVE_REMOTE)
-	{
-		cout << " REMOTE" << endl;
-	}
-	if (uint :: d == uint :: DRIVE_CDROM)
-	{
-		cout << " CDROM" << endl;
-	}
-	if (uint :: d == uint :: DRIVE_RAMDISK)
-	{
-		cout << " RAMDISK" << endl;
-	}*/
-
-	return 0;
+	else cout << " Not Present (GetVolumeInformation)" << endl;
 }
