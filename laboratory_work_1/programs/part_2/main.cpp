@@ -4,8 +4,23 @@
 #include <cstdlib>
 #include <ctime>
 #include <fstream>
+#include <cmath>
+#define _WIN32_WINNT 0x0501
 
 using namespace std;
+
+void copyFile(HANDLE firstHandle, HANDLE secondHandle, DWORD blockSize, int operationsCount);
+
+// õýíäëû íà ôàéëû, ó÷àâñòâóþùèå â îïåðàöèè êîïèðîâàíèÿ
+HANDLE firstHandle;
+HANDLE secondHandle;
+// òåêóùèé ñäâèã ñîñòîÿíèÿ êîïèðîâàíèÿ ôàéëà äëÿ îïåðàöèé ÷òåíèÿ è çàïèñè ñîîòâåòñòâåííî
+LARGE_INTEGER shiftRead;
+LARGE_INTEGER shiftWrite;
+
+
+
+
 
 int LocalFileGenerator (string localOldFilePath, unsigned long long localBytesRequest);
 void CopyPaste (string localOldFilePath, string localNewFilePath);
@@ -44,6 +59,57 @@ const unsigned bs_e = 70;
 const unsigned bs_std = 16;
 const unsigned thNum_b = 1;
 const unsigned thNum_e = 15;
+
+
+
+
+void ReadFileOverlapped(long long fileSize, DWORD blockSize, int operationsCount, OVERLAPPED* overlappeds, CHAR** buffer, HANDLE fileHandle)
+{
+    int operations_counter = 0;
+    for (int i=0; i<operationsCount; i++)
+    {
+        if (fileSize>0)
+        {
+            operations_counter++;
+            ReadFileEx(fileHandle, buffer[i], blockSize, &overlappeds[i], CompletionRoutine);
+            fileSize -= blockSize;
+        }
+    }
+    while (callback < operations_counter)
+        SleepEx(-1, true);
+    for (int i=0; i<operationsCount; i++)
+    {
+        overlappeds[i].Offset = shiftRead.LowPart;
+        overlappeds[i].OffsetHigh = shiftRead.HighPart;
+        shiftRead.QuadPart += blockSize;
+    }
+    callback = 0;
+}
+
+void WriteFileOverlapped(long long fileSize, DWORD blockSize, int operationsCount, OVERLAPPED* overlappeds, CHAR** buffer, HANDLE fileHandle)
+{
+    int operations_counter = 0;
+    for (int i=0; i<operationsCount; i++)
+    {
+        if (fileSize>0)
+        {
+            operations_counter++;
+            WriteFileEx(fileHandle, buffer[i], blockSize, &overlappeds[i], CompletionRoutine);
+            fileSize -= blockSize;
+        }
+    }
+    while (callback < operations_counter)
+        SleepEx(-1, true);
+    for (int i=0; i<operationsCount; i++)
+    {
+        overlappeds[i].Offset = shiftWrite.LowPart;
+        overlappeds[i].OffsetHigh = shiftWrite.HighPart;
+        shiftWrite.QuadPart += blockSize;
+    }
+    callback = 0;
+}
+
+
 
 // ---------- MAIN ----------
 
@@ -145,7 +211,9 @@ DWORD PreparingCopyPaste(string localOldFilePath, string localNewFilePath, unsig
         //fileSize = DWORDS2ULL(getFileSize, lpFileSizeHigh);
         fileSize = getFileSize | ((unsigned long long)lpFileSizeHigh << 32);
 
-        localActionTime = LocalCopyPaste(localOldFileHandle, localNewFileHandle, fileSize, localBlockSize, localOverlappedIOSize);
+        //localActionTime = LocalCopyPaste(localOldFileHandle, localNewFileHandle, fileSize, localBlockSize, localOverlappedIOSize);
+        //copyFile(localOldFileHandle, localNewFileHandle, localBlockSize, localOverlappedIOSize);
+        copyFile(localOldFileHandle, localNewFileHandle, 4096*5, localOverlappedIOSize);
     }
 
     // Checking handle and closing the file
@@ -165,6 +233,93 @@ DWORD PreparingCopyPaste(string localOldFilePath, string localNewFilePath, unsig
     }
 
     return localActionTime;
+}
+
+void copyFile(HANDLE firstHandle, HANDLE secondHandle, DWORD blockSize, int operationsCount) {
+    DWORD high = 0;
+    LARGE_INTEGER fileSizeStruct; // where file size will be wrote
+    long long fileSize; // number where we write
+    GetFileSizeEx(firstHandle, &fileSizeStruct); // file size (for input as LARGE_INTEGER we use it!!!)
+    fileSize = fileSizeStruct.QuadPart; // uniting fields one number
+    long long curSize = fileSize;
+
+    CHAR** buffer = new CHAR*[operationsCount]; // buffer of the data
+    for (int i=0; i < operationsCount; i++)
+    {
+        buffer[i] = new CHAR[(int)blockSize];
+    }
+    // äîëæíû îñòàâàòüñÿ äîïóñòèìûìè äëÿ äëèòåëüíîé îïåðàöèè ÷òåíèÿ.
+    OVERLAPPED* over_1 = new OVERLAPPED[operationsCount]; // var for handling pointers (starting bytes)
+    OVERLAPPED* over_2 = new OVERLAPPED[operationsCount]; // new file
+
+    shiftRead.QuadPart = 0; // how many rode
+    shiftWrite.QuadPart = 0; // how many write
+    for (int i=0; i < operationsCount; i++)
+    {
+        over_1[i].Offset = over_2[i].Offset = shiftRead.LowPart; // FIRST PART OF THE STRUCTURE
+        over_1[i].OffsetHigh = over_2[i].OffsetHigh = shiftRead.HighPart; // SEONDN PART (^$ bit
+        //over_1[i].hEvent = over_2[i].hEvent = NULL; // USELESS ABSOLUTELY
+        shiftRead.QuadPart += blockSize;
+        shiftWrite.QuadPart += blockSize;
+        cout << "eee";
+    }
+
+    do
+    {
+        //ReadFileOverlapped(curSize, blockSize, operationsCount, over_1, buffer, firstHandle);
+        int operations_counter = 0;
+        for (int i=0; i<operationsCount; i++)
+        {
+            if (curSize>0)
+            {
+                operations_counter++;
+                ReadFileEx(firstHandle, buffer[i], blockSize, &over_1[i], CompletionRoutine);
+                curSize -= blockSize;
+            }
+        }
+        while (callback < operations_counter)
+        {
+        	cout << "ddd1";
+            SleepEx(-1, true);
+        }
+        for (int i=0; i<operationsCount; i++)
+        {
+        	cout << "ddd2";
+            over_1[i].Offset = shiftRead.LowPart;
+            over_1[i].OffsetHigh = shiftRead.HighPart;
+            shiftRead.QuadPart += blockSize;
+        }
+        callback = 0;
+        operations_counter = 0;
+        for (int i=0; i<operationsCount; i++)
+        {
+        	cout << "ddd3";
+            if (curSize>0)
+            {
+                operations_counter++;
+                WriteFileEx(secondHandle, buffer[i], blockSize, &over_2[i], CompletionRoutine);
+                curSize -= blockSize;
+            }
+        }
+        while (callback < operations_counter)
+        {
+        	cout << "ddd4";
+            SleepEx(-1, true);
+        }
+        for (int i=0; i<operationsCount; i++)
+        {
+        	cout << "ddd5";
+            over_2[i].Offset = shiftWrite.LowPart;
+            over_2[i].OffsetHigh = shiftWrite.HighPart;
+            shiftWrite.QuadPart += blockSize;
+        }
+        callback = 0;
+        //WriteFileOverlapped(curSize, blockSize, operationsCount, over_2, buffer, secondHandle);
+        curSize -= (long long)(blockSize*operationsCount);
+    } while (curSize > 0);
+
+    SetFilePointerEx(secondHandle, fileSizeStruct, NULL, FILE_BEGIN);
+    SetEndOfFile(secondHandle);
 }
 
 // ---------- COPY AND PASTE ACTIONS DIRECTLY ----------
@@ -206,7 +361,15 @@ DWORD LocalCopyPaste (HANDLE in, HANDLE out, unsigned long long fileSize, unsign
     //localActionTime = timeGetTime();
     // ETO NUZHNO ISPRAVIT'
     localActionTime = 0;
-    unsigned long long i = 0
+    //unsigned long long i = 0
+
+    /*for (i = 0; i < localOverlappedIOSize; i++)
+    {
+    	over[i].Offset = offset_i; // сдвиг относительно начала файла
+		over[i].OffsetHigh = offset_i >> 32; // 2 23-битных числа, разбитых на части
+        //ULL2DWORDS(offset_i, &over[i].Offset, &over[i].OffsetHigh);
+        offset_i = offset_i + bs;
+    }*/
 
     do
     {
