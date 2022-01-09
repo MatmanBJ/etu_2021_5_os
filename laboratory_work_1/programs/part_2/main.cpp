@@ -40,26 +40,7 @@ unsigned long long oneSize;
 unsigned long long callLeft;
 unsigned long long copyTime = 0;
 
-/*
-Поменять эти значения на те, которые вам необходимы.
-
-При первом замере (когда кол-во перекрывающихся операций = 1 и меняется):
-    bs_b: означает, что минимальный размер копируемого блока при асинхронном копировании будет = bs_b * (размер сектора)
-    bs_e: означает, что максимальный размер копируемого блока при асинхронном копировании будет = bs_e * (размер сектора)
-
-При втором замере (размер копируемого блона постоянен и меняется кол-во перекрывающихся операций ввода и вывода):
-    bs_std: означает, что при втором замере размер копируемого блока всегда будет = bs_std * (размер сектора)
-    thNum_b: означает, что минимальное кол-во перекрывающихся операций ввода и вывода будет = thNum_b
-    thNum_e: означает, что максимальное кол-во перекрывающихся операций ввода и вывода будет = thNum_e
-*/
-
-const unsigned bs_b = 20;
-const unsigned bs_e = 70;
-
-const unsigned bs_std = 16;
-const unsigned thNum_b = 1;
-const unsigned thNum_e = 15;
-
+unsigned long long bs = 20;
 
 void LocalReadWrite(long long fileSize, DWORD blockSize, int operationsCount, OVERLAPPED* overlappeds, CHAR** buffer, HANDLE fileHandle, char f)
 {
@@ -102,54 +83,6 @@ void LocalReadWrite(long long fileSize, DWORD blockSize, int operationsCount, OV
     callback = 0;
 }
 
-void ReadFileOverlapped(long long fileSize, DWORD blockSize, int operationsCount, OVERLAPPED* overlappeds, CHAR** buffer, HANDLE fileHandle)
-{
-    int operations_counter = 0;
-    for (int i=0; i<operationsCount; i++)
-    {
-        if (fileSize>0)
-        {
-            operations_counter++;
-            ReadFileEx(fileHandle, buffer[i], blockSize, &overlappeds[i], CompletionRoutine);
-            fileSize -= blockSize;
-        }
-    }
-    while (callback < operations_counter)
-        SleepEx(-1, true);
-    for (int i=0; i<operationsCount; i++)
-    {
-        overlappeds[i].Offset = shiftRead.LowPart;
-        overlappeds[i].OffsetHigh = shiftRead.HighPart;
-        shiftRead.QuadPart += blockSize;
-    }
-    callback = 0;
-}
-
-void WriteFileOverlapped(long long fileSize, DWORD blockSize, int operationsCount, OVERLAPPED* overlappeds, CHAR** buffer, HANDLE fileHandle)
-{
-    int operations_counter = 0;
-    for (int i=0; i<operationsCount; i++)
-    {
-        if (fileSize>0)
-        {
-            operations_counter++;
-            WriteFileEx(fileHandle, buffer[i], blockSize, &overlappeds[i], CompletionRoutine);
-            fileSize -= blockSize;
-        }
-    }
-    while (callback < operations_counter)
-        SleepEx(-1, true);
-    for (int i=0; i<operationsCount; i++)
-    {
-        overlappeds[i].Offset = shiftWrite.LowPart;
-        overlappeds[i].OffsetHigh = shiftWrite.HighPart;
-        shiftWrite.QuadPart += blockSize;
-    }
-    callback = 0;
-}
-
-
-
 // ---------- MAIN ----------
 
 int main(int argc, char **argv)
@@ -162,7 +95,7 @@ int main(int argc, char **argv)
         LocalFileGenerator (oldFilePath, oldFileBytes);
         cout << "Created file number of bytes: " << oldFileBytes << " Created file path: " << oldFilePath << "\n";
         CopyPaste(oldFilePath, newFilePath);
-        cout << "Copied file path: " << oldFilePath << " Pasted file path: " << newFilePath << "\n";
+        cout << "Copied file path: " << oldFilePath << "\nPasted file path: " << newFilePath << "\n";
 
         return 0;
     }
@@ -207,16 +140,14 @@ void CopyPaste (string localOldFilePath, string localNewFilePath)
     
     localOverlappedIOSize = 1; // overlapped IO number
 
-    localBlockSize = localSectorSize*bs_b;
+    localBlockSize = localSectorSize*bs;
     copyTime = 0;
     copyTime = PreparingCopyPaste(localOldFilePath, localNewFilePath, localBlockSize, 1);
     cout << localBlockSizeIteration << ".\n"
     << "Current sector size: " << localSectorSize << ";\n"
-    << "Current sector multiplition: " << bs_b << ";\n"
+    << "Current sector multiplition: " << bs << ";\n"
     << "Current block size to copy: " << localBlockSize << ";\n"
     << "Current overlapped IO number: " << localOverlappedIOSize << ";\n"
-    << "Input file: " << localOldFilePath << ".\n"
-    << "Output file: " << localNewFilePath << ";\n"
     << "Overlapped copy time: " << copyTime << ".\n";
 }
 
