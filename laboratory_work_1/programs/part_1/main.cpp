@@ -22,6 +22,8 @@ API means "Application Programming Interface"
 */
 
 #include <windows.h> // for WinAPI functions
+#include <math.h> // for double making
+#include <exception>
 #include <iostream> // just for working
 #include <string> // for "string" type using
 
@@ -37,6 +39,9 @@ void MainMenu ();
 void MyGetLogicalDrives ();
 void MyGetDriveType ();
 void MyGetVolumeInformation ();
+void MyGetDiskFreeSpace ();
+
+void TMPF ();
 
 int main ()
 {
@@ -49,6 +54,15 @@ int main ()
 		MainMenu();
 		cin >> flag;
 		cout << "\n";
+		try
+		{
+			TMPF();
+		}
+		catch(exception e)
+		{
+			cout << e.what();
+		}
+
 		switch (flag)
 		{
 			case 0:
@@ -62,6 +76,9 @@ int main ()
 				break;
 			case 3:
 				MyGetVolumeInformation();
+				break;
+			case 4:
+				MyGetDiskFreeSpace();
 				break;
 			default:
 				cout << "Incorrect input! Try again.";
@@ -84,6 +101,8 @@ string GetDiskName ()
 	return localDisk;
 }
 
+// ---------- MENU FUNCTION ----------
+
 void MainMenu ()
 {
 	cout << "\n";
@@ -92,6 +111,7 @@ void MainMenu ()
 	cout << "1 -- Show all avaliable disk drives\n";
 	cout << "2 -- Show the drive type\n";
 	cout << "3 -- Show the volume information\n";
+	cout << "4 -- Show the disk free space\n";
 	cout << "\n";
 }
 
@@ -198,4 +218,64 @@ void MyGetVolumeInformation ()
 		cout << " File System is " << FileSystemNameBuffer << endl;
 	}
 	else cout << " Not Present (GetVolumeInformation)" << endl;
+}
+
+void MyGetDiskFreeSpace ()
+{
+	DWORD FreeBytesAvailable;
+	DWORD TotalNumberOfBytes;
+	DWORD TotalNumberOfFreeBytes;
+
+	BOOL GetDiskFreeSpaceFlag = GetDiskFreeSpaceEx("e:\\", // directory name
+	(PULARGE_INTEGER)&FreeBytesAvailable, // bytes available to caller
+	(PULARGE_INTEGER)&TotalNumberOfBytes, // bytes on disk
+	(PULARGE_INTEGER)&TotalNumberOfFreeBytes  // free bytes on disk
+	);
+	if(GetDiskFreeSpaceFlag != 0)
+	{
+		//double d = double(unsigned long(TotalNumberOfFreeBytes))/1024/1024/1024;
+		//cout << d;
+		cout << " Total Number Of Free Bytes = " << (unsigned long)TotalNumberOfFreeBytes << "( " << (double)(((unsigned long)(TotalNumberOfFreeBytes/1024))/1000) << " Mb )" << endl;
+		cout << " Total Number Of Bytes = " << (unsigned long)TotalNumberOfBytes << "( " << (double)(((unsigned long)(TotalNumberOfBytes/1024))/1000) << " Mb )" << endl;
+		cout << " Total Number Of Bytes = " << (unsigned long)TotalNumberOfBytes << "( " << TotalNumberOfBytes << " Mb )" << endl;
+		unsigned long tmp_1 = TotalNumberOfBytes;
+		tmp_1 = tmp_1/1024;
+		cout << tmp_1;
+		double tmp_2 = tmp_1;
+		tmp_2 = tmp_2/1000;
+		cout << tmp_2;
+		cout << TotalNumberOfBytes/1024000;
+	}
+	else
+	{
+		cout << " Not Present (GetDiskFreeSpace)" << endl;
+	}
+}
+
+void TMPF ()
+{
+	/*long unsigned int * secPerClus;
+	long unsigned int * bytePerSec;
+	long unsigned int * freeClus;
+	long unsigned int * totalClus;*/
+	/*LPDWORD secPerClus;
+	LPDWORD bytePerSec;
+	LPDWORD freeClus;
+	LPDWORD totalClus;*/
+	WCHAR* aaa = NULL, szDrive[4];
+	/*szDrive[0] = pszDrive[0];
+	szDrive[1] = ':';
+	szDrive[2] = '\\';
+	szDrive[3] = '\0';
+	pszDrive = szDrive;
+	szDrive[4] = pszDrive[0];*/
+	DWORD secPerClus;
+	DWORD bytePerSec;
+	DWORD freeClus;
+	DWORD totalClus;
+	string d = "e:\\";
+	int retval = GetDiskFreeSpace((LPCWSTR)aaa, &secPerClus, &bytePerSec, &freeClus, &totalClus);
+	//int retval = GetDiskFreeSpace(d.c_str(), secPerClus, bytePerSec, freeClus, totalClus);
+	//cout << secPerClus << " " << bytePerSec << " " << freeClus << " " << totalClus << " " << retval;
+	//cout << "ZZZZZ";
 }
