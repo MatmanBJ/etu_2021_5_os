@@ -10,11 +10,13 @@
 #include "./utils/hash/Imd5.h"
 #include "./utils/utils.h"
 
-//Certutil -hashfile file
-
 using namespace std;
 
+void CopyPaste (string path, string target);
+DWORD PreparingCopyPaste(string path, string target, unsigned long long bs, unsigned long long thNum);
+DWORD LocalCopyPaste (HANDLE in, HANDLE out, unsigned long long fileSize, unsigned long long bs, unsigned long long thNum);
 
+//Certutil -hashfile file
 
 //===============
 
@@ -38,34 +40,28 @@ const unsigned bs_std = 16;
 const unsigned thNum_b = 1;
 const unsigned thNum_e = 15;
 
-
-
-
-int genRndFile(string path, size_t bytes)
+int LocalFileGenerator (string path, size_t bytes)
 {
-    ofstream fs(path, ios::out | ios::binary | ios::app);
-    srand(time(NULL));
+    ofstream fs (path, ios::out | ios::binary | ios::app);
+    srand (time(NULL));
     unsigned long bytesNum = bytes;
     char rndByte[1];
-    for(unsigned long i = 0; i < bytesNum; ++i)
+    for (unsigned long i = 0; i < bytesNum; ++i)
     {
         rndByte[0] = (unsigned char)(rand() % 256);
-        fs.write(rndByte, sizeof(rndByte));
+        fs.write (rndByte, sizeof(rndByte));
     }
     fs.close();
     return 0;
 }
 
-
-
 //===============
 
-
-void cpUI(string path, string target)
+void CopyPaste (string path, string target)
 {
     DWORD time;
     DWORD sectorsPerCluster;
-    DWORD sectorSize = getDriveSectorSize(sectorsPerCluster);
+    DWORD sectorSize = getDriveSectorSize (sectorsPerCluster);
     unsigned long long bs;
     unsigned long long thNum;
 
@@ -82,7 +78,7 @@ void cpUI(string path, string target)
     for(unsigned i = bs_b, i_bsXY = 0; i <= bs_e; ++i, ++i_bsXY)
     {
         bs = sectorSize*i;
-        time = cp(path, target, bs, 1);
+        time = PreparingCopyPaste(path, target, bs, 1);
         cout << "bs = " << bs << " (" << i << "*" << sectorSize << "), thNum = " << thNum << ", time = " << time << ". Hash of result file = \"" << "\". " << endl;
         bsX[i_bsXY] = i;
         bsY[i_bsXY] = time;
@@ -99,22 +95,22 @@ void cpUI(string path, string target)
     for(unsigned i = thNum_b, i_thXY = 0; i <= thNum_e; ++i, ++i_thXY)
     {
         thNum = i;
-        time = cp(path, target, bs, thNum);
+        time = PreparingCopyPaste(path, target, bs, thNum);
         cout << "bs = " << bs << " (" << bs_std << "*" << sectorSize << "), thNum = " << thNum << ", time = " << time << ". Hash of result file = \"" << "\". " << endl;
         thX[i_thXY] = thNum;
         thY[i_thXY] = time;
     }
 }
 
-DWORD cp(string path, string target, unsigned long long bs, unsigned long long thNum)
+DWORD PreparingCopyPaste(string path, string target, unsigned long long bs, unsigned long long thNum)
 {
-    DWORD resTime = -1;
+    DWORD localActionTime = -1;
 
     HANDLE src = openSrc(path);
     HANDLE dest = openDest(target);
     WINBOOL closeSuccess;
 
-    if(src == NULL || src == INVALID_HANDLE_VALUE || dest == NULL || dest == INVALID_HANDLE_VALUE)
+    if (src == NULL || src == INVALID_HANDLE_VALUE || dest == NULL || dest == INVALID_HANDLE_VALUE)
     {
         cout << "Problem with opening files. " << endl;
         if (GetLastError())
@@ -126,7 +122,7 @@ DWORD cp(string path, string target, unsigned long long bs, unsigned long long t
         DWORD lSize = GetFileSize(src, &hSize);
         unsigned long long fileSize = DWORDS2ULL(lSize, hSize);
 
-        #ifdef cpDEBUG
+        #ifdef cpeDEBUG
         //fileSize = fileSize | ((unsigned long long)hSize << 32);
         cout << "Size of the file \"" << path << "\" is " << fileSize << ". " << endl;
         DWORD fi, si;
@@ -135,7 +131,7 @@ DWORD cp(string path, string target, unsigned long long bs, unsigned long long t
         cout << "Check: " << si << " == " << hSize << ". " << endl;
         #endif
 
-        resTime = readWrite(src, dest, fileSize, bs, thNum);
+        localActionTime = LocalCopyPaste(src, dest, fileSize, bs, thNum);
     }
 
     if( !(src == NULL || src == INVALID_HANDLE_VALUE) )
@@ -164,7 +160,7 @@ DWORD cp(string path, string target, unsigned long long bs, unsigned long long t
         else
             cout << "Problem with closing file \"" << dest << "\". " << endl;
     }
-    return resTime;
+    return localActionTime;
 }
 
 unsigned long long callback;
@@ -172,13 +168,16 @@ unsigned long long firstAddr;
 unsigned long long oneSize;
 unsigned long long callLeft;
 
-DWORD readWrite(HANDLE in, HANDLE out, unsigned long long fileSize, unsigned long long bs, unsigned long long thNum)
+// ---------- COPY AND PASTE ACTIONS DIRECTLY ----------
+
+DWORD LocalCopyPaste (HANDLE in, HANDLE out, unsigned long long fileSize, unsigned long long bs, unsigned long long thNum)
 {
-    DWORD resTime = -1;
+    DWORD localActionTime = -1;
 
-    if(fileSize <= 0)
-        return resTime;
-
+    if (fileSize <= 0)
+    {
+        return localActionTime;
+    }
 
     unsigned long long offset_i = 0;
 
@@ -205,9 +204,9 @@ DWORD readWrite(HANDLE in, HANDLE out, unsigned long long fileSize, unsigned lon
     #ifdef cpDEBUG
     int gi = 0;
     #endif
-    //resTime = timeGetTime();
+    //localActionTime = timeGetTime();
     // ETO NUZHNO ISPRAVIT'
-    resTime = 0;
+    localActionTime = 0;
     do
     {
         #ifdef cpDEBUG
@@ -263,9 +262,9 @@ DWORD readWrite(HANDLE in, HANDLE out, unsigned long long fileSize, unsigned lon
         while (callback < thNum + leftelse)
             SleepEx(-1, TRUE);
     }while(offset_i < fileSize-1);
-    //resTime = timeGetTime() - resTime;
+    //localActionTime = timeGetTime() - localActionTime;
     // ETO NUZHNO IPPRAVIT'
-    resTime = 0;
+    localActionTime = 0;
 
     //fix
     LARGE_INTEGER fileSizeStruct;
@@ -282,8 +281,10 @@ DWORD readWrite(HANDLE in, HANDLE out, unsigned long long fileSize, unsigned lon
         free(buffLeft);
     if(overLeft)
         free(overLeft);
-    return resTime;
+    return localActionTime;
 }
+
+// ---------- GET DRIVE SECTOR SIZE ----------
 
 DWORD getDriveSectorSize()
 {
@@ -293,7 +294,9 @@ DWORD getDriveSectorSize()
     return bytesPerSector;
 }
 
-DWORD getDriveSectorSize(DWORD &sectorsPerCluster)
+// ---------- GET DRIVE SECTOR SIZE OVERLOAD ----------
+
+DWORD getDriveSectorSize (DWORD &sectorsPerCluster)
 {
     DWORD totalNumberOfClusters = -1;
     //DWORD sectorsPerCluster = -1;
@@ -301,7 +304,9 @@ DWORD getDriveSectorSize(DWORD &sectorsPerCluster)
     DWORD numberOfFreeClusters = -1;
     WINBOOL getSpaceSuccess = GetDiskFreeSpaceA(NULL, &sectorsPerCluster, &bytesPerSector, &numberOfFreeClusters, &totalNumberOfClusters);
     if(!getSpaceSuccess)
+    {
         cout << "\t!!! An error occurred while getting information about the disk space !!!" << endl;
+    }
     return bytesPerSector;
 }
 
@@ -360,24 +365,26 @@ inline HANDLE openDest(string path)
     return res;
 }
 
+// ---------- MAIN ----------
+
 int main(int argc, char **argv)
 {
-    if(argc != 4)
+    if (argc != 4)
     {
         std::cout << "Syntax error. " << std::endl;
         return -1;
     }
     else
     {
-        const std::string src(argv[1]);
-        const std::string dst(argv[3]);
+        const string oldFilePath(argv[1]);
+        const string newFilePath(argv[3]);
         const size_t bytes_n = atoi(argv[2]);
         
-        std::cout << "Generating file with random bytes (length=" << bytes_n << "): \"" << src << "\"... " << std::endl;
-        genRndFile(src, bytes_n);
+        std::cout << "Generating file with random bytes (length = " << bytes_n << "): \"" << oldFilePath << "\"... " << std::endl;
+        LocalFileGenerator (oldFilePath, bytes_n);
         std::cout << "Generating done. " << std::endl;
-
-        cpUI(src, dst);
+        CopyPaste(oldFilePath, newFilePath);
+        
         return 0;
     }
 }
