@@ -5,21 +5,17 @@
 #include <ctime>
 #include <fstream>
 #include <cmath>
-#define _WIN32_WINNT 0x0501
+//#define _WIN32_WINNT 0x0501
 
 using namespace std;
 
-// õýíäëû íà ôàéëû, ó÷àâñòâóþùèå â îïåðàöèè êîïèðîâàíèÿ
-HANDLE firstHandle;
-HANDLE secondHandle;
-// òåêóùèé ñäâèã ñîñòîÿíèÿ êîïèðîâàíèÿ ôàéëà äëÿ îïåðàöèé ÷òåíèÿ è çàïèñè ñîîòâåòñòâåííî
-LARGE_INTEGER shiftRead;
-LARGE_INTEGER shiftWrite;
+LARGE_INTEGER shiftRead; // read structure
+LARGE_INTEGER shiftWrite; // write structure
 
 int LocalFileGenerator (string localOldFilePath, unsigned long long localBytesRequest);
 void CopyPaste (string localOldFilePath, string localNewFilePath);
 DWORD PreparingCopyPaste(string localOldFilePath, string localNewFilePath, unsigned long long localBlockSize, unsigned long long localOverlappedIOSize);
-void LocalReadWrite(long long fileSize, DWORD blockSize, int operationsCount, OVERLAPPED* overlappeds, CHAR** buffer, HANDLE fileHandle, char f);
+void LocalReadWrite(long long fileSize, DWORD blockSize, int localOperationsCounter, OVERLAPPED* overlappeds, CHAR** buffer, HANDLE fileHandle, char f);
 DWORD LocalDriveSectorSize ();
 DWORD LocalDriveSectorSize (DWORD &localSectorsPerCluster);
 void CALLBACK CompletionRoutine(DWORD dwErrorCode, DWORD dwNumberOfBytesTransfered, LPOVERLAPPED lpOverlapped);
@@ -28,21 +24,25 @@ void CALLBACK CompletionRoutine(DWORD dwErrorCode, DWORD dwNumberOfBytesTransfer
 
 unsigned long long callback;
 DWORD copyTime;
-unsigned long long bs = 1;
+unsigned long long bs = 1; // umber of block
 unsigned long long oios = 1; // number of operations for Overlapped I/O
 
 // ---------- MAIN ----------
 
 int main(int argc, char **argv)
 {
-    if (argc == 6)
+    if (argc == 7)
     {
     	const unsigned long oldFileBytes = atoi(argv[2]); // size
         const string oldFilePath(argv[1]); // old file
         const string newFilePath(argv[3]); // new file
         bs = atoi(argv[4]); // multiplitions
         oios = atoi(argv[5]); // operations
-        LocalFileGenerator (oldFilePath, oldFileBytes);
+        string gen = "gen";
+        if (strcmp(argv[6], gen.c_str()) == 0)
+        {
+        	LocalFileGenerator (oldFilePath, oldFileBytes);
+        }
         cout << "Created file number of bytes: " << oldFileBytes << " Created file path: " << oldFilePath << "\n";
         CopyPaste(oldFilePath, newFilePath);
         cout << "Copied file path: " << oldFilePath << "\nPasted file path: " << newFilePath << "\n";
@@ -119,7 +119,7 @@ DWORD PreparingCopyPaste(string localOldFilePath, string localNewFilePath, unsig
 	    long long fileSize; // number where we write
 	    GetFileSizeEx(localOldFileHandle, &fileSizeStruct); // file size (for input as LARGE_INTEGER we use it!!!)
 	    fileSize = fileSizeStruct.QuadPart; // uniting fields one number
-	    long long curSize = fileSize;
+	    long long currentSize = fileSize;
 
 	    CHAR** buffer = new CHAR*[localOverlappedIOSize]; // buffer of the data
 	    for (int i = 0; i < localOverlappedIOSize; i++)
@@ -144,16 +144,16 @@ DWORD PreparingCopyPaste(string localOldFilePath, string localNewFilePath, unsig
 
 	    do
 	    {
-	    	LocalReadWrite(curSize, blockSize, localOverlappedIOSize, over_1, buffer, localOldFileHandle, 'r');
-	        LocalReadWrite(curSize, blockSize, localOverlappedIOSize, over_2, buffer, localNewFileHandle, 'w');
-	        curSize -= (long long)(blockSize*localOverlappedIOSize);
+	    	LocalReadWrite(currentSize, blockSize, localOverlappedIOSize, over_1, buffer, localOldFileHandle, 'r');
+	        LocalReadWrite(currentSize, blockSize, localOverlappedIOSize, over_2, buffer, localNewFileHandle, 'w');
+	        currentSize -= (long long)(blockSize*localOverlappedIOSize);
 	    }
-	    while (curSize > 0);
+	    while (currentSize > 0);
+
+	    copyTime = GetTickCount() - copyTime; // time counting
 
 	    SetFilePointerEx(localNewFileHandle, fileSizeStruct, NULL, FILE_BEGIN);
 	    SetEndOfFile(localNewFileHandle);
-
-	    copyTime = GetTickCount() - copyTime; // time counting
     }
 
     // Checking handle and closing the file
@@ -177,10 +177,10 @@ DWORD PreparingCopyPaste(string localOldFilePath, string localNewFilePath, unsig
 
 // ---------- LOCAL READ WRITE ----------
 
-void LocalReadWrite(long long fileSize, DWORD blockSize, int operationsCount, OVERLAPPED* overlappeds, CHAR** buffer, HANDLE fileHandle, char f)
+void LocalReadWrite(long long fileSize, DWORD blockSize, int localOperationsCounter, OVERLAPPED* overlappeds, CHAR** buffer, HANDLE fileHandle, char f)
 {
     int operations_counter = 0;
-    for (int i = 0; i < operationsCount; i++)
+    for (int i = 0; i < localOperationsCounter; i++)
     {
         if (fileSize > 0)
         {
@@ -200,7 +200,7 @@ void LocalReadWrite(long long fileSize, DWORD blockSize, int operationsCount, OV
     {
         SleepEx(-1, true);
     }
-    for (int i = 0; i < operationsCount; i++)
+    for (int i = 0; i < localOperationsCounter; i++)
     {
     	if (f == 'r')
     	{
