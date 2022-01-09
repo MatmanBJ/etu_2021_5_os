@@ -61,7 +61,46 @@ const unsigned thNum_b = 1;
 const unsigned thNum_e = 15;
 
 
-
+void LocalReadWrite(long long fileSize, DWORD blockSize, int operationsCount, OVERLAPPED* overlappeds, CHAR** buffer, HANDLE fileHandle, char f)
+{
+    int operations_counter = 0;
+    for (int i=0; i<operationsCount; i++)
+    {
+        if (fileSize>0)
+        {
+            operations_counter++;
+            if (f == 'r')
+            {
+            	ReadFileEx(fileHandle, buffer[i], blockSize, &overlappeds[i], CompletionRoutine);
+            }
+            else if (f == 'w')
+            {
+            	WriteFileEx(fileHandle, buffer[i], blockSize, &overlappeds[i], CompletionRoutine);
+            }
+            fileSize -= blockSize;
+        }
+    }
+    while (callback < operations_counter)
+    {
+        SleepEx(-1, true);
+    }
+    for (int i=0; i<operationsCount; i++)
+    {
+    	if (f == 'r')
+    	{
+    		overlappeds[i].Offset = shiftRead.LowPart;
+        	overlappeds[i].OffsetHigh = shiftRead.HighPart;
+        	shiftRead.QuadPart += blockSize;
+    	}
+    	else if (f == 'w')
+    	{
+	        overlappeds[i].Offset = shiftWrite.LowPart;
+	        overlappeds[i].OffsetHigh = shiftWrite.HighPart;
+	        shiftWrite.QuadPart += blockSize;
+    	}
+    }
+    callback = 0;
+}
 
 void ReadFileOverlapped(long long fileSize, DWORD blockSize, int operationsCount, OVERLAPPED* overlappeds, CHAR** buffer, HANDLE fileHandle)
 {
@@ -172,20 +211,13 @@ void CopyPaste (string localOldFilePath, string localNewFilePath)
     copyTime = 0;
     copyTime = PreparingCopyPaste(localOldFilePath, localNewFilePath, localBlockSize, 1);
     cout << localBlockSizeIteration << ".\n"
+    << "Current sector size: " << localSectorSize << ";\n"
+    << "Current sector multiplition: " << bs_b << ";\n"
     << "Current block size to copy: " << localBlockSize << ";\n"
     << "Current overlapped IO number: " << localOverlappedIOSize << ";\n"
+    << "Input file: " << localOldFilePath << ".\n"
+    << "Output file: " << localNewFilePath << ";\n"
     << "Overlapped copy time: " << copyTime << ".\n";
-
-    /*int localOverlappedIOSizeIteration = 0; // iterator
-
-    localBlockSize = bs_std*localSectorSize; // block size (block size we will copy) = blocks number (how many?) * sector size (on disk)
-
-    localOverlappedIOSize = thNum_b;
-    copyTime = PreparingCopyPaste(localOldFilePath, localNewFilePath, localBlockSize, localOverlappedIOSize);
-    cout << localOverlappedIOSizeIteration << ".\n"
-    << "Current block size to copy: " << localBlockSize << ";\n"
-    << "Current overlapped IO number: " << localOverlappedIOSize << ";\n"
-    << "Overlapped copy time: " << copyTime << "\n";*/
 }
 
 // ---------- PREPARING FOR COPY AND PASTE ACTIONS ----------
@@ -198,7 +230,7 @@ DWORD PreparingCopyPaste(string localOldFilePath, string localNewFilePath, unsig
     HANDLE localNewFileHandle = CreateFileA(localNewFilePath.c_str(), GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_FLAG_OVERLAPPED | FILE_FLAG_NO_BUFFERING, NULL); // new file path
     DWORD lpFileSizeHigh; // lpdword filesize high
     DWORD getFileSize;
-    unsigned long long fileSize;
+    //unsigned long long fileSize;
 
     if (localOldFileHandle == NULL || localOldFileHandle == INVALID_HANDLE_VALUE || localNewFileHandle == NULL || localNewFileHandle == INVALID_HANDLE_VALUE)
     {
@@ -208,10 +240,8 @@ DWORD PreparingCopyPaste(string localOldFilePath, string localNewFilePath, unsig
     else
     {
         getFileSize = GetFileSize(localOldFileHandle, &lpFileSizeHigh);
-        //fileSize = DWORDS2ULL(getFileSize, lpFileSizeHigh);
-        fileSize = getFileSize | ((unsigned long long)lpFileSizeHigh << 32);
+        //fileSize = getFileSize | ((unsigned long long)lpFileSizeHigh << 32);
 
-        //localActionTime = LocalCopyPaste(localOldFileHandle, localNewFileHandle, fileSize, localBlockSize, localOverlappedIOSize);
         //copyFile(localOldFileHandle, localNewFileHandle, localBlockSize, localOverlappedIOSize);
         copyFile(localOldFileHandle, localNewFileHandle, 4096*5, localOverlappedIOSize);
     }
@@ -235,7 +265,8 @@ DWORD PreparingCopyPaste(string localOldFilePath, string localNewFilePath, unsig
     return localActionTime;
 }
 
-void copyFile(HANDLE firstHandle, HANDLE secondHandle, DWORD blockSize, int operationsCount) {
+void copyFile(HANDLE firstHandle, HANDLE secondHandle, DWORD blockSize, int operationsCount)
+{
     DWORD high = 0;
     LARGE_INTEGER fileSizeStruct; // where file size will be wrote
     long long fileSize; // number where we write
@@ -254,69 +285,22 @@ void copyFile(HANDLE firstHandle, HANDLE secondHandle, DWORD blockSize, int oper
 
     shiftRead.QuadPart = 0; // how many rode
     shiftWrite.QuadPart = 0; // how many write
+
     for (int i=0; i < operationsCount; i++)
     {
         over_1[i].Offset = over_2[i].Offset = shiftRead.LowPart; // FIRST PART OF THE STRUCTURE
         over_1[i].OffsetHigh = over_2[i].OffsetHigh = shiftRead.HighPart; // SEONDN PART (^$ bit
-        //over_1[i].hEvent = over_2[i].hEvent = NULL; // USELESS ABSOLUTELY
         shiftRead.QuadPart += blockSize;
         shiftWrite.QuadPart += blockSize;
-        cout << "eee";
     }
 
     do
     {
-        //ReadFileOverlapped(curSize, blockSize, operationsCount, over_1, buffer, firstHandle);
-        int operations_counter = 0;
-        for (int i=0; i<operationsCount; i++)
-        {
-            if (curSize>0)
-            {
-                operations_counter++;
-                ReadFileEx(firstHandle, buffer[i], blockSize, &over_1[i], CompletionRoutine);
-                curSize -= blockSize;
-            }
-        }
-        while (callback < operations_counter)
-        {
-        	cout << "ddd1";
-            SleepEx(-1, true);
-        }
-        for (int i=0; i<operationsCount; i++)
-        {
-        	cout << "ddd2";
-            over_1[i].Offset = shiftRead.LowPart;
-            over_1[i].OffsetHigh = shiftRead.HighPart;
-            shiftRead.QuadPart += blockSize;
-        }
-        callback = 0;
-        operations_counter = 0;
-        for (int i=0; i<operationsCount; i++)
-        {
-        	cout << "ddd3";
-            if (curSize>0)
-            {
-                operations_counter++;
-                WriteFileEx(secondHandle, buffer[i], blockSize, &over_2[i], CompletionRoutine);
-                curSize -= blockSize;
-            }
-        }
-        while (callback < operations_counter)
-        {
-        	cout << "ddd4";
-            SleepEx(-1, true);
-        }
-        for (int i=0; i<operationsCount; i++)
-        {
-        	cout << "ddd5";
-            over_2[i].Offset = shiftWrite.LowPart;
-            over_2[i].OffsetHigh = shiftWrite.HighPart;
-            shiftWrite.QuadPart += blockSize;
-        }
-        callback = 0;
-        //WriteFileOverlapped(curSize, blockSize, operationsCount, over_2, buffer, secondHandle);
+    	LocalReadWrite(curSize, blockSize, operationsCount, over_1, buffer, firstHandle, 'r');
+        LocalReadWrite(curSize, blockSize, operationsCount, over_2, buffer, secondHandle, 'w');
         curSize -= (long long)(blockSize*operationsCount);
-    } while (curSize > 0);
+    }
+    while (curSize > 0);
 
     SetFilePointerEx(secondHandle, fileSizeStruct, NULL, FILE_BEGIN);
     SetEndOfFile(secondHandle);
@@ -361,15 +345,6 @@ DWORD LocalCopyPaste (HANDLE in, HANDLE out, unsigned long long fileSize, unsign
     //localActionTime = timeGetTime();
     // ETO NUZHNO ISPRAVIT'
     localActionTime = 0;
-    //unsigned long long i = 0
-
-    /*for (i = 0; i < localOverlappedIOSize; i++)
-    {
-    	over[i].Offset = offset_i; // сдвиг относительно начала файла
-		over[i].OffsetHigh = offset_i >> 32; // 2 23-битных числа, разбитых на части
-        //ULL2DWORDS(offset_i, &over[i].Offset, &over[i].OffsetHigh);
-        offset_i = offset_i + bs;
-    }*/
 
     do
     {
@@ -491,27 +466,8 @@ DWORD LocalDriveSectorSize (DWORD &localSectorsPerCluster)
     return localBytesPerSector;
 }
 
-// ---------- DWORD TO UNSILGEN LONG LONG CONVERTATION ----------
-
-/*unsigned long long DWORDS2ULL(DWORD l, DWORD h)
-{
-    unsigned long long res;
-    res = l;
-    res = res | ((unsigned long long)h << 32);
-    return res;
-}*/
-
-// ---------- UNSIGNED LONG LONG TO DWORD ----------
-
-/*void ULL2DWORDS(unsigned long long value, DWORD* l, DWORD* h)
-{
-    *l = value;
-    *h = value >> 32;
-}*/
-
 // ---------- AFTER READING FILE NEED TO MAKE THIS FUNCTION ----------
 
-// for read file ex
 void CALLBACK CompletionRoutine (DWORD dwErrorCode, DWORD dwNumberOfBytesTransfered, LPOVERLAPPED lpOverlapped)
 {
 	callback = callback + 1;
