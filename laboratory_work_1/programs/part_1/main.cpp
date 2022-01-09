@@ -749,6 +749,7 @@ void LocalCreateFile () // A WISE FACT: THERE IS NO "OPEN FILE" FINCTION, THERE 
 	if (localFile != INVALID_HANDLE_VALUE)
 	{
 		cout << "The file \"" << localFilePath << "\" has been successfully created (opened, rewrited)!\n";
+		CloseHandle(localFile);
 	}
 	else
 	{
