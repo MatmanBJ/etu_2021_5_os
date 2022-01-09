@@ -63,49 +63,57 @@ void CopyPaste (string path, string target)
 {
     DWORD time;
     DWORD sectorsPerCluster;
-    DWORD sectorSize = getDriveSectorSize (sectorsPerCluster);
-    unsigned long long bs;
-    unsigned long long thNum;
+    DWORD localSectorSize = getDriveSectorSize (sectorsPerCluster);
+    unsigned long long localBlockSize; // size of the data block I will copy
+    unsigned long long localOverlappedIOSize; // number of operations for Overlapped I/O
 
-    cout << "Drive sector size: " << sectorSize << " bytes. " << endl;
-    cout << "Drive cluster size: " << sectorsPerCluster << " sectors (" << sectorSize*sectorsPerCluster << " bytes). " << endl << endl;
+    cout << "Drive sector size: " << localSectorSize << " bytes. " << endl;
+    cout << "Drive cluster size: " << sectorsPerCluster << " sectors (" << localSectorSize*sectorsPerCluster << " bytes). " << endl << endl;
 
-    //=====thNum = 1, bs = x, time = y=====
+    // THE EXPERIMENT PART I
+
+    //=====localOverlappedIOSize = 1, localBlockSize = x, time = y=====
     const size_t n_bsXY = bs_e - bs_b + 1;
     unsigned bsX[n_bsXY];
     unsigned bsY[n_bsXY];
-    size_t i_bsXY = 0; /*WTF? warning: variable 'i_bsXY' set but not used*/ i_bsXY++;--i_bsXY; //blblblblbl
+    size_t i_bsXY = 0;
+    i_bsXY++; // useless action for usage, actually
+    --i_bsXY; // useless action for usage, actually
     
-    thNum = 1;
-    for(unsigned i = bs_b, i_bsXY = 0; i <= bs_e; ++i, ++i_bsXY)
+    localOverlappedIOSize = 1;
+    for (unsigned i = bs_b, i_bsXY = 0; i <= bs_e; ++i, ++i_bsXY)
     {
-        bs = sectorSize*i;
-        time = PreparingCopyPaste(path, target, bs, 1);
-        cout << "bs = " << bs << " (" << i << "*" << sectorSize << "), thNum = " << thNum << ", time = " << time << ". Hash of result file = \"" << "\". " << endl;
+        localBlockSize = localSectorSize*i;
+        time = PreparingCopyPaste(path, target, localBlockSize, 1);
+        cout << "localBlockSize = " << localBlockSize << " (" << i << "*" << localSectorSize << "), localOverlappedIOSize = " << localOverlappedIOSize << ", time = " << time << ". Hash of result file = \"" << "\". " << endl;
         bsX[i_bsXY] = i;
         bsY[i_bsXY] = time;
     }
 
-    //=====bs = bs_std, thNum = x, time = y=====
+    // THE EXPERIMET PART II
+
+    //=====localBlockSize = bs_std, localOverlappedIOSize = x, time = y=====
     const size_t n_thXY = thNum_e - thNum_b + 1;
     unsigned thX[n_bsXY];
     unsigned thY[n_bsXY];
-    size_t i_thXY = 0; /*WTF? warning: variable 'i_bsXY' set but not used*/ i_thXY++;--i_thXY; //blblblblbl
+    size_t i_thXY = 0;
+    i_thXY++; // useless action for usage, actually
+    --i_thXY; // useless action for usage, actually
 
-    bs = bs_std*sectorSize;
-    for(unsigned i = thNum_b, i_thXY = 0; i <= thNum_e; ++i, ++i_thXY)
+    localBlockSize = bs_std*localSectorSize; // block size (block size we will copy) = blocks number (how many?) * sector size (on disk)
+    for (unsigned i = thNum_b, i_thXY = 0; i <= thNum_e; ++i, ++i_thXY)
     {
-        thNum = i;
-        time = PreparingCopyPaste(path, target, bs, thNum);
-        cout << "bs = " << bs << " (" << bs_std << "*" << sectorSize << "), thNum = " << thNum << ", time = " << time << ". Hash of result file = \"" << "\". " << endl;
-        thX[i_thXY] = thNum;
+        localOverlappedIOSize = i;
+        time = PreparingCopyPaste(path, target, localBlockSize, localOverlappedIOSize);
+        cout << "localBlockSize = " << localBlockSize << " (" << bs_std << "*" << localSectorSize << "), localOverlappedIOSize = " << localOverlappedIOSize << ", time = " << time << ". Hash of result file = \"" << "\". " << endl;
+        thX[i_thXY] = localOverlappedIOSize;
         thY[i_thXY] = time;
     }
 }
 
 // ---------- PREPARING FOR COPY AND PASTE ACTIONS ----------
 
-DWORD PreparingCopyPaste(string path, string target, unsigned long long bs, unsigned long long thNum)
+DWORD PreparingCopyPaste(string path, string target, unsigned long long bs, unsigned long long localOverlappedIOSize)
 {
     DWORD localActionTime = -1;
 
@@ -135,7 +143,7 @@ DWORD PreparingCopyPaste(string path, string target, unsigned long long bs, unsi
         //cout << "Check: " << fi << " == " << lSize << ". " << endl;
         //cout << "Check: " << si << " == " << hSize << ". " << endl;
 
-        localActionTime = LocalCopyPaste(src, dest, fileSize, bs, thNum);
+        localActionTime = LocalCopyPaste(src, dest, fileSize, bs, localOverlappedIOSize);
     }
 
     if( !(src == NULL || src == INVALID_HANDLE_VALUE) )
@@ -176,17 +184,17 @@ unsigned long long callLeft;
 
 // ---------- COPY AND PASTE ACTIONS DIRECTLY ----------
 
-DWORD LocalCopyPaste (HANDLE in, HANDLE out, unsigned long long fileSize, unsigned long long bs, unsigned long long thNum)
+DWORD LocalCopyPaste (HANDLE in, HANDLE out, unsigned long long fileSize, unsigned long long bs, unsigned long long localOverlappedIOSize)
 {
     DWORD localActionTime = -1;
 
     unsigned long long offset_i = 0;
 
     OVERLAPPED* over = NULL;
-    char** buff = NULL;
+    char** localBuffer = NULL;
 
     OVERLAPPED* overLeft = NULL;
-    char* buffLeft = NULL;
+    char* localBufferLeft = NULL;
     unsigned long long bsLeft = 0;
     int leftelse = 0;
 
@@ -195,15 +203,15 @@ DWORD LocalCopyPaste (HANDLE in, HANDLE out, unsigned long long fileSize, unsign
         return localActionTime;
     }
 
-    over = new OVERLAPPED[thNum];
-    buff = new char*[thNum];
-    for (unsigned long long i = 0; i < thNum; ++i)
+    over = new OVERLAPPED[localOverlappedIOSize];
+    localBuffer = new char*[localOverlappedIOSize];
+    for (unsigned long long i = 0; i < localOverlappedIOSize; ++i)
     {
-        buff[i] = new char[bs];
+        localBuffer[i] = new char[bs];
     }
 
     overLeft = (OVERLAPPED*)malloc(sizeof(OVERLAPPED));
-    buffLeft = (char*)malloc(sizeof(char)*bs);
+    localBufferLeft = (char*)malloc(sizeof(char)*bs);
 
     firstAddr = (unsigned long long)(&over[0]);
     oneSize = sizeof(OVERLAPPED);
@@ -221,9 +229,9 @@ DWORD LocalCopyPaste (HANDLE in, HANDLE out, unsigned long long fileSize, unsign
         // DEBUG
         //cout << "Iter " << gi++ << ": " << endl;
 
-        if(bs*thNum <= fileSize)
+        if(bs*localOverlappedIOSize <= fileSize)
         {
-            for (unsigned long long i = 0; i < thNum; ++i)
+            for (unsigned long long i = 0; i < localOverlappedIOSize; ++i)
             {
                 ULL2DWORDS(offset_i, &over[i].Offset, &over[i].OffsetHigh);
                 offset_i += bs;
@@ -231,19 +239,20 @@ DWORD LocalCopyPaste (HANDLE in, HANDLE out, unsigned long long fileSize, unsign
         }
         else
         {
-            thNum = fileSize / bs;
+            localOverlappedIOSize = fileSize / bs;
             leftelse = (fileSize%bs == 0?0:1);
-            bsLeft = getDriveSectorSize(); bsLeft = ( (fileSize%bs)/bsLeft + 1) * bsLeft;
+            bsLeft = getDriveSectorSize();
+            bsLeft = ( (fileSize%bs)/bsLeft + 1) * bsLeft;
             //bsLeft = fileSize%bs;
 
-            for (unsigned long long i = 0; i < thNum; ++i)
+            for (unsigned long long i = 0; i < localOverlappedIOSize; ++i)
             {
                 ULL2DWORDS(offset_i, &over[i].Offset, &over[i].OffsetHigh);
                 offset_i += bs;
             }
             if(leftelse)
             {
-                cout << "Last size is " << bsLeft << ", addr=" << callLeft << ", thNum = " << thNum << ". " << endl;
+                cout << "Last size is " << bsLeft << ", addr=" << callLeft << ", localOverlappedIOSize = " << localOverlappedIOSize << ". " << endl;
                 ULL2DWORDS(offset_i, &(overLeft->Offset), &(overLeft->OffsetHigh));
                 offset_i += bsLeft;
             }
@@ -251,34 +260,34 @@ DWORD LocalCopyPaste (HANDLE in, HANDLE out, unsigned long long fileSize, unsign
         }
 
         callback = 0;
-        for(unsigned long long i = 0; i < thNum; ++i)
+        for(unsigned long long i = 0; i < localOverlappedIOSize; ++i)
         {
-            ReadFileEx(in, buff[i], bs, &over[i], FileIOCompletionRoutineIN);
+            ReadFileEx(in, localBuffer[i], bs, &over[i], FileIOCompletionRoutineIN);
         }
         if(leftelse)
         {
-            ReadFileEx(in, buffLeft, bsLeft, overLeft, FileIOCompletionRoutineIN);
+            ReadFileEx(in, localBufferLeft, bsLeft, overLeft, FileIOCompletionRoutineIN);
         }
-        while (callback < thNum + leftelse)
+        while (callback < localOverlappedIOSize + leftelse)
         {
             SleepEx(-1, TRUE);
         }
 
         callback = 0;
-        for(unsigned long long i = 0; i < thNum; ++i)
+        for(unsigned long long i = 0; i < localOverlappedIOSize; ++i)
         {
-            WriteFileEx(out, buff[i], bs, &over[i], FileIOCompletionRoutineOUT);
+            WriteFileEx(out, localBuffer[i], bs, &over[i], FileIOCompletionRoutineOUT);
         }
         if(leftelse)
         {
-            WriteFileEx(out, buffLeft, bsLeft, overLeft, FileIOCompletionRoutineOUT);
+            WriteFileEx(out, localBufferLeft, bsLeft, overLeft, FileIOCompletionRoutineOUT);
         }
-        while (callback < thNum + leftelse)
+        while (callback < localOverlappedIOSize + leftelse)
         {
             SleepEx(-1, TRUE);
         }
     }
-    while(offset_i < fileSize-1);
+    while (offset_i < fileSize - 1);
     //localActionTime = timeGetTime() - localActionTime;
     // ETO NUZHNO IPPRAVIT'
     localActionTime = 0;
@@ -290,15 +299,15 @@ DWORD LocalCopyPaste (HANDLE in, HANDLE out, unsigned long long fileSize, unsign
     SetEndOfFile(out);
 
     //CLEAN
-    for (unsigned long long i = 0; i < thNum; ++i)
+    for (unsigned long long i = 0; i < localOverlappedIOSize; ++i)
     {
-        delete buff[i];
+        delete localBuffer[i];
     }
-    delete buff;
+    delete localBuffer;
     delete over;
-    if (buffLeft)
+    if (localBufferLeft)
     {
-        free (buffLeft);
+        free (localBufferLeft);
     }
     if (overLeft)
     {
@@ -311,9 +320,9 @@ DWORD LocalCopyPaste (HANDLE in, HANDLE out, unsigned long long fileSize, unsign
 
 DWORD getDriveSectorSize()
 {
-    DWORD buff = -1;
+    DWORD localBuffer = -1;
     DWORD bytesPerSector = -1;
-    bytesPerSector = getDriveSectorSize(buff);
+    bytesPerSector = getDriveSectorSize(localBuffer);
     return bytesPerSector;
 }
 
