@@ -21,20 +21,6 @@ API means "Application Programming Interface"
 
 */
 
-/*
-
-No Hope for Sudden joy,
-Gatekeepers stand, the grass is swinging.
-How many lifes you will decoy?
-The Shine for You, for Me is Madness!
-
-What's Power of Your Force,
-My Dear Friend, My Dear Darkness?
-No Matter how I Strive, this Path,
-It Seems so Long and Endless...
-
-*/
-
 #include <windows.h> // for WinAPI functions
 #include <math.h> // for double making
 #include <exception> // for exceptions
@@ -52,20 +38,23 @@ string currentPath = "c:\\"; // the current working path is disc "c:/" by defaul
 string GetDiskName();
 void MainMenu ();
 void Info ();
-void Poem ();
 void LocalGetLogicalDrives ();
 void LocalGetDriveType ();
 void LocalGetVolumeInformation ();
 void LocalGetDiskFreeSpaceEx ();
 void LocalGetDiskFreeSpace ();
+void GetDiskInfo();
+bool dirExists(const std::string& dirName_in);
 string GetPathKernel (char localFlag);
-string GetPathShell (char localFunctionFlag, char localFlagOne, char localFlagTwo, string localMessage);
+string GetPathShell (char localFlagOne, char localFlagTwo, string localMessageOne, string localMessageTwo);
 void LocalCreateRemoveDirectory (char actionCreateRemove);
 void LocalCreateFile();
 void LocalCopyMoveFile(char actionCopyMove);
 void LocalGetFileAttributes ();
 void LocalSetFileAttributes ();
 void LocalGetFileInformationByHandle ();
+void GetFileTime ();
+void SetFileTime ();
 
 // ---------- MAIN ----------
 
@@ -94,9 +83,6 @@ int main (int argc, char* argv[]) // i've finally understood what it means (argc
 			case 3:
 				Info();
 				break;
-			case 4:
-				Poem();
-				break;
 			case 11:
 				LocalGetLogicalDrives();
 				break;
@@ -108,6 +94,9 @@ int main (int argc, char* argv[]) // i've finally understood what it means (argc
 				break;
 			case 23:
 				LocalGetDiskFreeSpace();
+				break;
+			case 24:
+				GetDiskInfo();
 				break;
 			case 231:
 				LocalGetDiskFreeSpaceEx();
@@ -138,6 +127,12 @@ int main (int argc, char* argv[]) // i've finally understood what it means (argc
 				break;
 			case 63:
 				LocalGetFileInformationByHandle();
+				break;
+			case 64:
+				GetFileTime();
+				break;
+			case 65:
+				SetFileTime();
 				break;
 			default:
 				cout << "Incorrect input! Try again.";
@@ -173,13 +168,13 @@ void MainMenu ()
 	cout << "1 -- Output current directory\n";
 	cout << "2 -- Change current working directory\n";
 	cout << "3 -- Info\n";
-	cout << "4 -- \"Can machine write a poem?\"\n";
 	cout << "1 -- DRIVES LIST:\n";
 	cout << "11 -- Show all avaliable disk drives\n";
 	cout << "2 -- INFORMATION ABOUT DRIVES:\n";
 	cout << "21 -- Show the drive type\n";
 	cout << "22 -- Show the volume information\n";
 	cout << "23 -- Show the disk free space\n";
+	cout << "24 -- Show all disk information\n";
 	cout << "3 -- DIRECTORIES:\n";
 	cout << "31 -- Create new directory\n";
 	cout << "32 -- Remove old directory\n";
@@ -192,6 +187,9 @@ void MainMenu ()
 	cout << "6 -- ATTRIBUTES\n";
 	cout << "61 -- Get file attributes\n";
 	cout << "62 -- Set file attributes\n";
+	cout << "63 -- Get file attributes by handle\n";
+	cout << "64 -- Get file time\n";
+	cout << "65 -- Set file time\n";
 	cout << "\n";
 }
 
@@ -207,20 +205,6 @@ void Info ()
 	<< "This software is under MIT License (X11 License).\n"
 	<< "You can see a detailed description in \"LICENSE.md\" file.\n\n"
 	<< "Copyight (c) 2021 Sobolev Matvey Sergeevich\n";
-}
-
-// ---------- 0 -- POEM ----------
-
-void Poem ()
-{
-	cout << "No Hope for Sudden joy,\n"
-	<< "Gatekeepers stand, the grass is swinging.\n"
-	<< "How many lifes you will decoy?\n"
-	<< "The Shine for You, for Me is Madness!\n\n"
-	<< "What's Power of Your Force,\n"
-	<< "My Dear Friend, My Dear Darkness?\n"
-	<< "No Matter how I Strive, this Path,\n"
-	<< "It Seems so Long and Endless...\n";
 }
 
 // ---------- 1 -- GET LOGICAL DRIVES ----------
@@ -414,6 +398,88 @@ void LocalGetDiskFreeSpace ()
 	{
 		cout << "Returned value: " << (unsigned long long)gdfs << "\nThere is no such disk as " << localDiskName << "!\n";
 	}
+}
+
+// ---------- 2 -- GET DISK FREE SPACE ----------
+
+void GetDiskInfo()
+{
+	string drive = GetPathShell('f', 's', "Path to the DISK.\n", "Do you want to input absolute (full) path of the file (directory) or relative (short)? [f/s]\n");
+    DWORD drive_type = GetDriveTypeA(drive.c_str());
+    switch (drive_type) {
+        case DRIVE_UNKNOWN: cout<< "The drive type cannot be determined.\n";
+            break;
+        case DRIVE_NO_ROOT_DIR: cout<< "The root path is invalid; for example, there is no volume mounted at the specified path. \n";
+            break;
+        case DRIVE_REMOVABLE: cout<< "The drive \""<< drive<<"\" has removable media; for example, a floppy drive, thumb drive, or flash card reader. \n";
+            break;
+        case DRIVE_FIXED: cout<< "The drive \""<< drive<<"\"has fixed media; for example, a hard disk drive or flash drive. \n";
+            break;
+        case DRIVE_REMOTE: cout<< "The drive \""<< drive<<"\" is a remote (network) drive. \n";
+            break;
+        case DRIVE_CDROM: cout<< "The drive \""<< drive<<"\" is a CD-ROM drive\n";
+            break;
+        case DRIVE_RAMDISK: cout<< "The drive \""<< drive<<"\" is a RAM disk.\n";
+            break;
+        default: cout<< "You shouldn't see this massage. Smth goes wrong";
+    }
+
+
+    char nameBuffer[100];
+    char sysNameBuff[100];
+    DWORD serialNumber,maxComponentLength,fileSystemFlags;
+   if(GetVolumeInformationA(drive.c_str(),nameBuffer,sizeof(nameBuffer),&serialNumber,&maxComponentLength,&fileSystemFlags,sysNameBuff,sizeof(sysNameBuff))){
+        cout << "\nDrive name:" << nameBuffer << endl <<
+        "Type of File system:" << sysNameBuff << endl <<
+        "Serial number:" << serialNumber << endl <<
+        "System flags:" << endl;
+       string specVol = "The specified volume";
+       string specVolSup = specVol + " supports";
+       if (fileSystemFlags & FILE_CASE_PRESERVED_NAMES)
+           cout << specVol + " preserved case of file names when it places a name on disk.\n";
+       if (fileSystemFlags & FILE_CASE_SENSITIVE_SEARCH)
+           cout << specVolSup + " case-sensitive file names.\n";
+       if (fileSystemFlags & FILE_FILE_COMPRESSION)
+           cout << specVolSup + " file-based compression.\n";
+       if (fileSystemFlags & FILE_NAMED_STREAMS)
+           cout << specVolSup + " named streams.\n";
+       if (fileSystemFlags & FILE_PERSISTENT_ACLS)
+           cout << specVol + " preserves and enforces access control lists (ACL). For example, the NTFS file system preserves and enforces ACLs, and the FAT file system does not.\n";
+       if (fileSystemFlags & FILE_READ_ONLY_VOLUME)
+           cout << specVol + " is read-only.\n";
+       if (fileSystemFlags & FILE_SEQUENTIAL_WRITE_ONCE)
+           cout << specVolSup + " a single sequential write.\n";
+       if (fileSystemFlags & FILE_SUPPORTS_ENCRYPTION)
+           cout << specVolSup + " the Encrypted File System (EFS).\n";
+       if (fileSystemFlags & FILE_SUPPORTS_EXTENDED_ATTRIBUTES)
+           cout << specVolSup + " extended attributes.\n";
+       if (fileSystemFlags & FILE_SUPPORTS_HARD_LINKS)
+           cout << specVolSup + " hard links. \n";
+       if (fileSystemFlags & FILE_SUPPORTS_OBJECT_IDS)
+           cout << specVolSup + " object identifiers.\n";
+       if (fileSystemFlags & FILE_SUPPORTS_OPEN_BY_FILE_ID)
+           cout << specVolSup + " open by FileID.\n";
+       if (fileSystemFlags & FILE_SUPPORTS_REPARSE_POINTS)
+           cout << specVolSup + " reparse points.\n";
+       if (fileSystemFlags & FILE_SUPPORTS_SPARSE_FILES)
+           cout << specVolSup + " sparse files.\n";
+       if (fileSystemFlags & FILE_SUPPORTS_TRANSACTIONS)
+           cout << specVolSup + " transactions.\n";
+       if (fileSystemFlags & FILE_SUPPORTS_USN_JOURNAL)
+           cout << specVolSup + " update sequence number (USN) journals.\n";
+       if (fileSystemFlags & FILE_UNICODE_ON_DISK)
+           cout << specVolSup + " Unicode in file names as they appear on disk.\n";
+       if (fileSystemFlags & FILE_VOLUME_IS_COMPRESSED)
+           cout << specVol + " is a compressed volume, for example, a DoubleSpace volume.\n";
+       if (fileSystemFlags & FILE_VOLUME_QUOTAS)
+           cout << specVolSup + " disk quotas.\n";
+   }
+
+    long long FreeBytesAvailableToCaller;
+    long long TotalNumberOfBytes;
+    GetDiskFreeSpaceExA(drive.c_str(), (PULARGE_INTEGER)&FreeBytesAvailableToCaller, (PULARGE_INTEGER)&TotalNumberOfBytes, nullptr);
+    cout << "\nTotal drive space:  " << TotalNumberOfBytes << " bytes" << endl;
+    cout << "Available drive space:  " << FreeBytesAvailableToCaller << " bytes" << endl;
 }
 
 // ---------- 3 -- CREATE DIRECTORY ----------
@@ -1180,8 +1246,9 @@ void LocalGetFileInformationByHandle ()
 		HANDLE                       hFile, // path to the handle
 		LPBY_HANDLE_FILE_INFORMATION lpFileInformation // file information
 	);*/
+	string localFilePath = GetPathShell('f', 's', "Path to the FILE or DIRECTORY, which ATTRIBUTES you WANT TO GET.\n", "Do you want to input absolute (full) path of the file (directory) or relative (short)? [f/s]\n");
 
-	HANDLE hFile = CreateFile("C:\\Users\\stud5411\\Desktop\\test.txt", // file name
+	HANDLE hFile = CreateFile(localFilePath.c_str(), // file name
         GENERIC_READ,          // open for reading
         0,                     // do not share
         NULL,                  // default security
@@ -1195,6 +1262,156 @@ void LocalGetFileInformationByHandle ()
     size = lpFileInformation->nFileSizeLow;
 
     DWORD localAttributes = lpFileInformation->dwFileAttributes;
+
+	if (localAttributes & FILE_ATTRIBUTE_ARCHIVE)
+	{
+		cout << "Archive (FILE_ATTRIBUTE_ARCHIVE)\n";
+	}
+	if (localAttributes & FILE_ATTRIBUTE_COMPRESSED)
+	{
+		cout << "Compressed (FILE_ATTRIBUTE_COMPRESSED)\n";
+	}
+	if (localAttributes & FILE_ATTRIBUTE_DEVICE)
+	{
+		cout << "Device (FILE_ATTRIBUTE_DEVICE)\n";
+	}
+	if (localAttributes & FILE_ATTRIBUTE_DIRECTORY)
+	{
+		cout << "Directory (FILE_ATTRIBUTE_DIRECTORY)\n";
+	}
+	if (localAttributes & FILE_ATTRIBUTE_ENCRYPTED)
+	{
+		cout << "Encrypted (FILE_ATTRIBUTE_ENCRYPTED)\n";
+	}
+	if (localAttributes & FILE_ATTRIBUTE_HIDDEN)
+	{
+		cout << "Hidden (FILE_ATTRIBUTE_HIDDEN)\n";
+	}
+	/*if (localAttributes & FILE_ATTRIBUTE_INTEGRITY_STREAM)
+	{
+		cout << "Data stream configured with integrity (FILE_ATTRIBUTE_INTEGRITY_STREAM)\n";
+	}*/
+	if (localAttributes & FILE_ATTRIBUTE_NORMAL)
+	{
+		cout << "Normal (FILE_ATTRIBUTE_NORMAL)\n";
+	}
+	if (localAttributes & FILE_ATTRIBUTE_NOT_CONTENT_INDEXED)
+	{
+		cout << "Not indexed (FILE_ATTRIBUTE_NOT_CONTENT_INDEXED)\n";
+	}
+	/*if (localAttributes & FILE_ATTRIBUTE_NO_SCRUB_DATA)
+	{
+		cout << "Data stream not to be read by the data integrity scanner (FILE_ATTRIBUTE_NO_SCRUB_DATA)\n";
+	}*/
+	if (localAttributes & FILE_ATTRIBUTE_OFFLINE)
+	{
+		cout << "Don't avaliable immediatly (FILE_ATTRIBUTE_OFFLINE)\n";
+	}
+	if (localAttributes & FILE_ATTRIBUTE_READONLY)
+    {
+		cout << "Read-only (FILE_ATTRIBUTE_READONLY)\n";
+	}
+	/*if (localAttributes & FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS)
+	{
+		cout << "Data is not fully presented locally (FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS)\n";
+	}
+	if (localAttributes & FILE_ATTRIBUTE_RECALL_ON_OPEN)
+	{
+		cout << "Data hasn't physical representation on system (FILE_ATTRIBUTE_RECALL_ON_OPEN)\n";
+	}*/
+	if (localAttributes & FILE_ATTRIBUTE_REPARSE_POINT)
+	{
+		cout << "Reparse point/representation link (FILE_ATTRIBUTE_REPARSE_POINT)\n";
+	}
+	if (localAttributes & FILE_ATTRIBUTE_SPARSE_FILE)
+	{
+		cout << "Sparse file (FILE_ATTRIBUTE_SPARSE_FILE)\n";
+	}
+	if (localAttributes & FILE_ATTRIBUTE_SYSTEM)
+	{
+		cout << "System used (FILE_ATTRIBUTE_SYSTEM)\n";
+	}
+	if (localAttributes & FILE_ATTRIBUTE_TEMPORARY)
+	{
+		cout << "Temporary storage (FILE_ATTRIBUTE_TEMPORARY)\n";
+	}
+	if (localAttributes & FILE_ATTRIBUTE_VIRTUAL)
+	{
+		cout << "Reserved for system (FILE_ATTRIBUTE_VIRTUAL)\n";
+	}
+
+	char buffer[256];
+
+    SYSTEMTIME st;
+    FILETIME ft;
+    string strMessage;
+
+    // first
+
+    ft.dwLowDateTime = (lpFileInformation->ftCreationTime).dwLowDateTime;
+    ft.dwHighDateTime = (lpFileInformation->ftCreationTime).dwHighDateTime;
+
+    FileTimeToSystemTime(&ft, &st);
+
+    sprintf( buffer,
+             "%d-%02d-%02d %02d:%02d:%02d.%03d", 
+             st.wYear,
+             st.wMonth, 
+             st.wDay,                      
+             st.wHour, 
+             st.wMinute, 
+             st.wSecond,
+             st.wMilliseconds );
+	strMessage = buffer;
+
+	std::cout << "CREATION TIME = " << strMessage << endl;
+
+	// second
+
+    ft.dwLowDateTime = (lpFileInformation->ftLastWriteTime).dwLowDateTime;
+    ft.dwHighDateTime = (lpFileInformation->ftLastWriteTime).dwHighDateTime;
+
+    FileTimeToSystemTime(&ft, &st);
+
+    sprintf( buffer,
+             "%d-%02d-%02d %02d:%02d:%02d.%03d", 
+             st.wYear,
+             st.wMonth, 
+             st.wDay,                      
+             st.wHour, 
+             st.wMinute, 
+             st.wSecond,
+             st.wMilliseconds );
+	strMessage = buffer;
+
+	std::cout << "LAST WRITE TIME = " << strMessage << endl;
+
+	// third
+
+    ft.dwLowDateTime = (lpFileInformation->ftLastAccessTime).dwLowDateTime;
+    ft.dwHighDateTime = (lpFileInformation->ftLastAccessTime).dwHighDateTime;
+
+    FileTimeToSystemTime(&ft, &st);
+
+    sprintf( buffer,
+             "%d-%02d-%02d %02d:%02d:%02d.%03d", 
+             st.wYear,
+             st.wMonth, 
+             st.wDay,                      
+             st.wHour, 
+             st.wMinute, 
+             st.wSecond,
+             st.wMilliseconds );
+	strMessage = buffer;
+
+	std::cout << "LAST ACCESS TIME = " << strMessage << endl;
+
+    cout << "Volume serial number: " << lpFileInformation->dwVolumeSerialNumber << "\n";
+    cout << "Local size high/low: " << lpFileInformation->nFileSizeHigh << " " << lpFileInformation->nFileSizeLow << "\n";
+    cout << "Number Of Links: " << lpFileInformation->nNumberOfLinks << "\n";
+    cout << "Index High/low: " << lpFileInformation->nFileIndexHigh << " " << lpFileInformation->nFileIndexLow << "\n";
+
+    /*DWORD localAttributes = lpFileInformation->dwFileAttributes;
     //localCreationTime;
     DWORD localAccessTime = (lpFileInformation->ftLastAccessTime).dwLowDateTime;
     //localChangeTime;
@@ -1203,12 +1420,186 @@ void LocalGetFileInformationByHandle ()
     DWORD localSizeLow = lpFileInformation->nFileSizeLow;
     DWORD localNumberOfLinks = lpFileInformation->nNumberOfLinks;
     DWORD localIndexHigh = lpFileInformation->nFileIndexHigh;
-    DWORD localIndexLow = lpFileInformation->nFileIndexLow;
+    DWORD localIndexLow = lpFileInformation->nFileIndexLow;*/
 
-    cout << localAttributes;
+    /*cout << localAttributes;
     cout << localAccessTime;
+    cout << localVolumeSerialNumber;
+    cout << localSizeHigh;
+    cout << localSizeLow;
+    cout << localNumberOfLinks;
+    cout << localIndexHigh;
+    cout << localIndexLow;*/
 
-    printf("%d\n handle: %d \n",size,hFile);
-    //while (getch()!='q');
+    CloseHandle(hFile);
+}
+
+// ---------- 6 -- LOCAL GET FILE INFORMATION BY HANDLE ----------
+
+void GetFileTime ()
+{
+	string localFilePath = GetPathShell('f', 's', "Path to the FILE get time.\n", "Do you want to input absolute (full) path of the file (directory) or relative (short)? [f/s]\n");
+
+	HANDLE hFile = CreateFile(localFilePath.c_str(), // file name
+	    GENERIC_READ,          // open for reading
+	    0,                     // do not share
+	    NULL,                  // default security
+	    OPEN_EXISTING,         // existing file only
+	    0, // normal file
+	    NULL);
+
+    FILETIME creationTime;
+    FILETIME lastWriteTime;
+    FILETIME lastAccessTime;
+
+    if (GetFileTime(hFile, &creationTime, &lastAccessTime, &lastWriteTime))
+    {
+    	//FILETIME ft;
+
+	    //ft.dwHighDateTime = creationTime.dwHighDateTime;
+	    //ft.dwLowDateTime = creationTime.dwLowDateTime;
+	    char buffer[256];
+
+	    SYSTEMTIME st;
+	    FileTimeToSystemTime(&creationTime, &st);
+
+	    sprintf( buffer,
+	             "%d-%02d-%02d %02d:%02d:%02d.%03d", 
+	             st.wYear,
+	             st.wMonth, 
+	             st.wDay,                      
+	             st.wHour, 
+	             st.wMinute, 
+	             st.wSecond,
+	             st.wMilliseconds );
+    	string strMessage = buffer;
+
+    	std::cout << "System time = " << strMessage << std::endl;
+
+    	FileTimeToSystemTime(&lastAccessTime, &st);
+
+	    sprintf( buffer,
+	             "%d-%02d-%02d %02d:%02d:%02d.%03d", 
+	             st.wYear,
+	             st.wMonth, 
+	             st.wDay,                      
+	             st.wHour, 
+	             st.wMinute, 
+	             st.wSecond,
+	             st.wMilliseconds );
+    	strMessage = buffer;
+
+    	std::cout << "Access time = " << strMessage << std::endl;
+
+    	FileTimeToSystemTime(&lastWriteTime, &st);
+
+	    sprintf( buffer,
+	             "%d-%02d-%02d %02d:%02d:%02d.%03d", 
+	             st.wYear,
+	             st.wMonth, 
+	             st.wDay,                      
+	             st.wHour, 
+	             st.wMinute, 
+	             st.wSecond,
+	             st.wMilliseconds );
+    	strMessage = buffer;
+
+    	std::cout << "Change time = " << strMessage << std::endl;
+    }
+    else
+    {
+        cout << "Something wrong!" << "\n";
+    }
+    CloseHandle(hFile);
+}
+
+// ---------- 6 -- LOCAL GET FILE INFORMATION BY HANDLE ----------
+
+void SetFileTime ()
+{
+	string localFilePath = GetPathShell('f', 's', "Path to the FILE set time.\n", "Do you want to input absolute (full) path of the file (directory) or relative (short)? [f/s]\n");
+
+	HANDLE hFile = CreateFile(localFilePath.c_str(), // file name
+	    GENERIC_WRITE,          // open for reading
+	    0,                     // do not share
+	    NULL,                  // default security
+	    OPEN_EXISTING,         // existing file only
+	    0, // normal file
+	    NULL);
+
+	string one;
+	string two;
+	string three;
+
+	cout << "Time format: 2021-10-03 18:29:40.152\n";
+	cout << "Creation time:\n";
+	fflush(stdin);
+	getline(cin, one);
+
+	cout << "Last write time:\n";
+	fflush(stdin);
+	getline(cin, two);
+
+
+	cout << "Last access time:\n";
+	fflush(stdin);
+	getline(cin, three);
+
+	FILETIME creationTime;//= buffTime.creationTime;
+    FILETIME lastWriteTime;// = buffTime.lastWriteTime;
+    FILETIME lastAccessTime;// = buffTime.lastAccessTime;
+
+    SYSTEMTIME systime_1;
+    SYSTEMTIME systime_2;
+    SYSTEMTIME systime_3;
+
+    memset(&systime_1,0,sizeof(systime_1));
+    // Date string should be "yyyy-MM-dd hh:mm"
+    sscanf_s(one.c_str(), "%d-%d-%d%d:%d:%d:%d.%d", 
+                            &systime_1.wYear, 
+                            &systime_1.wMonth,
+                            &systime_1.wDay,
+                            &systime_1.wHour,
+                            &systime_1.wMinute,
+                            &systime_1.wSecond,
+                            &systime_1.wMilliseconds);
+
+    SystemTimeToFileTime(&systime_1, &creationTime);
+
+    memset(&systime_2,0,sizeof(systime_2));
+    // Date string should be "yyyy-MM-dd hh:mm"
+    sscanf_s(two.c_str(), "%d-%d-%d%d:%d:%d:%d.%d", 
+                            &systime_2.wYear, 
+                            &systime_2.wMonth,
+                            &systime_2.wDay,
+                            &systime_2.wHour,
+                            &systime_2.wMinute,
+                            &systime_2.wSecond,
+                            &systime_2.wMilliseconds);
+
+    SystemTimeToFileTime(&systime_2, &lastWriteTime);
+
+    memset(&systime_3,0,sizeof(systime_3));
+    // Date string should be "yyyy-MM-dd hh:mm"
+    sscanf_s(three.c_str(), "%d-%d-%d%d:%d:%d:%d.%d", 
+                            &systime_3.wYear, 
+                            &systime_3.wMonth,
+                            &systime_3.wDay,
+                            &systime_3.wHour,
+                            &systime_3.wMinute,
+                            &systime_3.wSecond,
+                            &systime_3.wMilliseconds);
+
+    SystemTimeToFileTime(&systime_3, &lastAccessTime);
+
+    if(SetFileTime(hFile, &creationTime, &lastAccessTime, &lastWriteTime))
+    {
+        cout << "Time changed!" << endl;
+    }
+    else
+    {
+        cout << "Time hasn't been changed!" << endl;
+    }
+
     CloseHandle(hFile);
 }
