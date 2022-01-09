@@ -5,7 +5,7 @@ Faculty of Computer Science and Technology "FKTI",
 Department of Computer Science and Engineering,
 Computer Systems Engineering and Informatics (09.03.01) program.
 
-OS labortory work 1 version 0_5 dated 2021_09_20
+OS labortory work 1 version 0_6 dated 2021_09_21
 
 This software is under MIT License (X11 License).
 You can see a detailed description in "LICENSE.md" file.
@@ -39,7 +39,9 @@ It Seems so Long and Endless...
 #include <math.h> // for double making
 #include <exception>
 #include <iostream> // just for working
-#include <string> // for "string" type using
+#include <string> // for the "string" type using
+#include <vector> // for the "vector" type using
+#include <algorithm> // for the "find" function using
 
 using namespace std;
 
@@ -50,6 +52,7 @@ string currentPath = "c:\\"; // the current working path is disc "c:/" by defaul
 string GetDiskName();
 void MainMenu ();
 void Info ();
+void Poem ();
 void LocalGetLogicalDrives ();
 void LocalGetDriveType ();
 void LocalGetVolumeInformation ();
@@ -63,11 +66,11 @@ void LocalCopyMoveFile(char actionCopyMove);
 
 // ---------- MAIN ----------
 
-int main ()
+int main (int argc, char* argv[]) // i've finally understood what it means (argc -- number of arguments, argv -- strings of arguments (including -<word> and --<word>))
 {
 	// "GET CURRENT DIRECTORY", "SET CURRENT DIRECTORY"
 
-	int flag = 0;
+	int flag = -1; // -1 for incorrect input continue the program
 
 	do
 	{
@@ -87,6 +90,9 @@ int main ()
 				break;
 			case 3:
 				Info();
+				break;
+			case 4:
+				Poem();
 				break;
 			case 11:
 				LocalGetLogicalDrives();
@@ -113,7 +119,13 @@ int main ()
 				LocalCreateFile();
 				break;
 			case 51:
-				LocalCopyMoveFile();
+				LocalCopyMoveFile('c');
+				break;
+			case 52:
+				LocalCopyMoveFile('m');
+				break;
+			case 53:
+				LocalCopyMoveFile('e');
 				break;
 			default:
 				cout << "Incorrect input! Try again.";
@@ -149,6 +161,7 @@ void MainMenu ()
 	cout << "1 -- Output current directory\n";
 	cout << "2 -- Change current working directory\n";
 	cout << "3 -- Info\n";
+	cout << "4 -- \"Can machine write a poem?\"\n";
 	cout << "1 -- DRIVES LIST:\n";
 	cout << "11 -- Show all avaliable disk drives\n";
 	cout << "2 -- INFORMATION ABOUT DRIVES:\n";
@@ -162,6 +175,8 @@ void MainMenu ()
 	cout << "41 -- Create new file\n";
 	cout << "5 -- COPY/MOVE FILES\n";
 	cout << "51 -- Copy file\n";
+	cout << "52 -- Move file\n";
+	cout << "53 -- Move file (extended properties)\n";
 	cout << "\n";
 }
 
@@ -171,10 +186,22 @@ void Info ()
 	<< "Faculty of Computer Science and Technology \"FKTI\",\n"
 	<< "Department of Computer Science and Engineering,\n"
 	<< "Computer Systems Engineering and Informatics (09.03.01) program.\n\n"
-	<< "OS labortory work 1 version 0_3 dated 2021_09_19\n\n"
+	<< "OS labortory work 1 version 0_6 dated 2021_09_21\n\n"
 	<< "This software is under MIT License (X11 License).\n"
 	<< "You can see a detailed description in \"LICENSE.md\" file.\n\n"
 	<< "Copyight (c) 2021 Sobolev Matvey Sergeevich\n";
+}
+
+void Poem ()
+{
+	cout << "No Hope for Sudden joy,\n"
+	<< "Gatekeepers stand, the grass is swinging.\n"
+	<< "How many lifes you will decoy?\n"
+	<< "The Shine for You, for Me is Madness!\n\n"
+	<< "What's Power of Your Force,\n"
+	<< "My Dear Friend, My Dear Darkness?\n"
+	<< "No Matter how I Strive, this Path,\n"
+	<< "It Seems so Long and Endless...\n";
 }
 
 // ---------- 1 -- GET LOGICAL DRIVES ----------
@@ -390,40 +417,6 @@ bool dirExists(const std::string& dirName_in)
 	return false;    // this is not a directory!
 }
 
-// ---------- 3 -- GET PATH OLD ----------
-
-/*string GetPathOld ()
-{
-	char localCommit = 'n';
-	string localPath;
-	while (localCommit != 'y')
-	{
-		cout << "Please, input current path you want:\n";
-		cin >> localPath;
-		if (dirExists(localPath))
-		{
-			cout << "This is your new currenth path: " << localPath << "\n";
-			cout << "Commit changes? [y/n]\n";
-			cin >> localCommit;
-		}
-		else
-		{
-			cout << "Your new path \"" << localPath << "\"isn't valid, try again? [y/n]: " << "\n";
-			cin >> localCommit;
-			if (localCommit == 'y')
-			{
-				localCommit == 'n';
-			}
-			else if (localCommit == 'n')
-			{
-				localCommit == 'y';
-			}
-		}
-	}
-	currentPath = localPath;
-	return localPath;
-}*/
-
 // ---------- 3 -- GET PATH NEW ----------
 
 string GetPathNew (char localFlag)
@@ -578,6 +571,7 @@ void LocalCreateRemoveDirectory (char actionCreateRemove) // if 'c' -- creating 
 		else
 		{
 			cout << "Something wrong! The directory \"" << localDirectory << "\" hasn't been created!\n";
+			cout << "Last error code is \"" << GetLastError() << "\"\n";
 		}
 	}
 	else if (actionCreateRemove == 'r')
@@ -589,6 +583,7 @@ void LocalCreateRemoveDirectory (char actionCreateRemove) // if 'c' -- creating 
 		else
 		{
 			cout << "Something wrong! The directory \"" << localDirectory << "\" hasn't been removed!\n";
+			cout << "Last error code is \"" << GetLastError() << "\"\n";
 		}
 	}
 	else
@@ -600,6 +595,7 @@ void LocalCreateRemoveDirectory (char actionCreateRemove) // if 'c' -- creating 
 		else
 		{
 			cout << "Something wrong! The directory \"" << localDirectory << "\" hasn't been created!\n";
+			cout << "Last error code is \"" << GetLastError() << "\"\n";
 		}
 	}
 }
@@ -693,12 +689,13 @@ void LocalCreateFile () // A WISE FACT: THERE IS NO "OPEN FILE" FINCTION, THERE 
 	else
 	{
 		cout << "Something wrong! The file \"" << localFilePath << "\" hasn't been created (opened, rewrited)!\n";
+		cout << "Last error code is \"" << GetLastError() << "\"\n";
 	}
 }
 
 // ---------- 5 -- LOCAL COPY MOVE FILE ----------
 
-void LocalCopyMoveFile (char actionCopyMove) // 'c' for copy, 'm' for moving, ATTENTION: 'c' -- copy -- is default if there is other letter!
+void LocalCopyMoveFile (char actionCopyMove) // 'c' for copy, 'm' for moving, 'e' for extended moving (MoveFileEx) ATTENTION: 'c' -- copy -- is default if there is other letter!
 {
 	// specification of "CopyFile"
 	/*BOOL CopyFile(
@@ -711,25 +708,28 @@ void LocalCopyMoveFile (char actionCopyMove) // 'c' for copy, 'm' for moving, AT
 	bool localFailIfExists; // for existing file reaction
 	//bool localCopy;
 	char localPathFlag = 'y'; // just another letter, not 'f' or 's', so you need input it anyway
+	char localSameNameFlag = 'a'; // random letter
 	string localOldFilePath; // old (copied) file path you input
 	string localNewFilePath; // new (pasted) file path you input
 
-	// OLD FILE PATH INPUT
+	// OLD FILE PATH INPUT (INCLUDING SITUATIONS "COPY" AND "MOVE")
 
 	while (localPathFlag != 'f' && localPathFlag != 's')
 	{
+		// "copy" and "move" situations
 		if (actionCopyMove == 'c') // 'c' is for "copy"
 		{
 			cout << "Path to the FILE, which you WANT TO COPY.\n" << "Do you want to input absolute (full) path of the file or relative (short)? [f/s]\n";
 		}
-		else if (actionCopyMove == 'm') // 'm' is for "moving"
+		else if (actionCopyMove == 'm' || actionCopyMove == 'e') // 'm' is for "moving", 'e' is for "extended moving"
 		{
-			cout << "Path to the FILE, which you WANT TO MOVE.\n" << "Do you want to input absolute (full) path of the file or relative (short)? [f/s]\n";
+			cout << "Path to the FILE, which you WANT TO MOVE (CUT).\n" << "Do you want to input absolute (full) path of the file or relative (short)? [f/s]\n";
 		}
 		else // "copy" is default
 		{
 			cout << "Path to the FILE, which you WANT TO COPY.\n" << "Do you want to input absolute (full) path of the file or relative (short)? [f/s]\n";
 		}
+		// checking for the flag
 		cin >> localPathFlag;
 		if (localPathFlag != 'f' && localPathFlag != 's')
 		{
@@ -753,12 +753,38 @@ void LocalCopyMoveFile (char actionCopyMove) // 'c' for copy, 'm' for moving, AT
 		localOldFilePath = GetPathNew(localPathFlag); // set new relative path
 	}
 
+	// SAME NAME SITUATION
+
+	while (localSameNameFlag != 'y' && localSameNameFlag != 'n')
+	{
+		cout << "Do you want the SAME NAME AS COPIED/CUT file (including extension)? [y/n]\n";
+		// checking for the flag
+		cin >> localSameNameFlag;
+		if (localSameNameFlag != 'y' && localSameNameFlag != 'n') // 'n' -- no -- by default
+		{
+			cout << "Try again!\n";
+		}
+	}	
+
 	// NEW FILE PATH INPUT
 
-	localPathFlag = 'y'; // random letter afain to revent ignoring if construction
+	localPathFlag = 'y'; // random letter again to prevent ignoring if construction
 	while (localPathFlag != 'f' && localPathFlag != 's')
 	{
-		cout << "Path to the NEW FILE, where you WANT to PASTE the COPIED FILE.\n" << "Do you want to input absolute (full) path of the file or relative (short)? [f/s]\n";
+		// "copy" and "move" situations
+		if (actionCopyMove == 'c') // 'c' is for "copy"
+		{
+			cout << "Path to the NEW FILE, where you WANT to PASTE the COPIED FILE.\n" << "Do you want to input absolute (full) path of the file or relative (short)? [f/s]\n";
+		}
+		else if (actionCopyMove == 'm' || actionCopyMove == 'e') // 'm' is for "moving", 'e' is for "extended moving"
+		{
+			cout << "Path to the NEW FILE, where you WANT to MOVE (PASTE) the CUT FILE.\n" << "Do you want to input absolute (full) path of the file or relative (short)? [f/s]\n";
+		}
+		else // "copy" is default
+		{
+			cout << "Path to the NEW FILE, where you WANT to PASTE the COPIED FILE.\n" << "Do you want to input absolute (full) path of the file or relative (short)? [f/s]\n";
+		}
+		// checking for the flag
 		cin >> localPathFlag;
 		if (localPathFlag != 'f' && localPathFlag != 's')
 		{
@@ -768,10 +794,52 @@ void LocalCopyMoveFile (char actionCopyMove) // 'c' for copy, 'm' for moving, AT
 
 	if (localPathFlag == 'f') // full file path situation
 	{
-		localNewFilePath = GetPathNew(localPathFlag); // set new absolute path
+		string localFilename = string(localOldFilePath);
+		// Remove directory if present.
+		// Do this before extension removal incase directory has a period character.
+		const size_t last_slash_idx = localFilename.find_last_of("\\/");
+		if (std::string::npos != last_slash_idx)
+		{
+		    localFilename.erase(0, last_slash_idx + 1);
+		}
+		// Remove extension if present.
+		/*const size_t period_idx = localFilename.rfind('.');
+		if (std::string::npos != period_idx)
+		{
+		    localFilename.erase(period_idx);
+		}*/
+
+		if (localSameNameFlag == 'y') // same name of the file -- choosing full directory path instead of the filename
+		{
+			localNewFilePath = GetPathNew('a') + localFilename; // set new absolute path, 'a' means "absolute"
+		}
+		else if (localSameNameFlag == 'n') // different (as user choosed) name of the file -- choosing full file path
+		{
+			localNewFilePath = GetPathNew(localPathFlag); // set new absolute path, 'f' means "full file path"
+		}
+		else // not the same name -- default
+		{
+			localNewFilePath = GetPathNew(localPathFlag); // set new absolute path, 'f' means "full file path"
+		}
+		//localNewFilePath = GetPathNew(localPathFlag); // set new absolute path
 	}
 	else if (localPathFlag == 's') // short file path situation
 	{
+		string localFilename = string(localOldFilePath);
+		// Remove directory if present.
+		// Do this before extension removal incase directory has a period character.
+		const size_t last_slash_idx = localFilename.find_last_of("\\/");
+		if (std::string::npos != last_slash_idx)
+		{
+		    localFilename.erase(0, last_slash_idx + 1);
+		}
+		// Remove extension if present.
+		/*const size_t period_idx = localFilename.rfind('.');
+		if (std::string::npos != period_idx)
+		{
+		    localFilename.erase(period_idx);
+		}*/
+
 		char localChange = 'n';
 		cout << "Do you want to change current working path? [y/n]\n";
 		cin >> localChange;
@@ -779,43 +847,151 @@ void LocalCopyMoveFile (char actionCopyMove) // 'c' for copy, 'm' for moving, AT
 		{
 			currentPath = GetPathNew('c'); // changing current directory
 		}
-		localNewFilePath = GetPathNew(localPathFlag); // set new relative path
+
+		if (localSameNameFlag == 'y') // same name of the file -- choosing relative directory path instead of the filename
+		{
+			localNewFilePath = GetPathNew('r') + localFilename; // set new relative path, 'r' means "relative"
+		}
+		else if (localSameNameFlag == 'n') // different (as user choosed) name of the file -- choosing short file path
+		{
+			localNewFilePath = GetPathNew(localPathFlag); // set new relative path, 's' means "short file path"
+		}
+		else // not the same name -- default
+		{
+			localNewFilePath = GetPathNew(localPathFlag); // set new relative path, 's' means "short file path"
+		}
+		//localNewFilePath = GetPathNew(localPathFlag); // set new relative path
 	}
 
-	// IF NEW FILE EXISTS
+	// COPY and MOVE
 
-	while (localChoose < 1 || localChoose > 2)
+	if (actionCopyMove == 'c' || (actionCopyMove != 'm' && actionCopyMove != 'e')) // copy
 	{
-		// because "CREATE_NEW" by default (1 is number for "CREATE_NEW")
-		cout << "Please, choose the possible outcome for you IF NEW FILE EXISTS:\n" << "1 -- DON'T PASTE AND DON'T REWRITE ANY FILE (TRUE)\n"
-		<< "2 -- REWRITE THE FILE (FALSE)\n";
-		cin >> localChoose;
-		if (localChoose < 1 || localChoose > 2)
+		// IF NEW FILE EXISTS
+
+		while (localChoose < 1 || localChoose > 2)
 		{
-			cout << "Try again!\n";
+			// because "CREATE_NEW" by default (1 is number for "CREATE_NEW")
+			cout << "Please, choose the possible outcome for you IF NEW FILE EXISTS:\n" << "1 -- DON'T PASTE AND DON'T REWRITE ANY FILE (TRUE)\n"
+			<< "2 -- REWRITE THE FILE (FALSE)\n";
+			cin >> localChoose;
+			if (localChoose < 1 || localChoose > 2)
+			{
+				cout << "Try again!\n";
+			}
+		}
+
+		switch(localChoose)
+		{
+			case 1:
+				localFailIfExists = true;
+				break;
+			case 2:
+				localFailIfExists = false;
+				break;
+			default:
+				localFailIfExists = true; // true -- file rewriting protection -- by default
+				break;
+		}
+
+		// don't forget about c_str()!
+		if (CopyFile(localOldFilePath.c_str(), localNewFilePath.c_str(), localFailIfExists)) // copy file and watching the result immediatly
+		{
+			cout << "The file \"" << localOldFilePath << "\" has been successfully copied to file \"" << localNewFilePath << "\"!\n";
+		}
+		else
+		{
+			cout << "Something wrong! The file \"" << localOldFilePath << "\" hasn't been copied to file \"" << localNewFilePath << "\"!\n";
+			cout << "Last error code is \"" << GetLastError() << "\"\n";
 		}
 	}
-
-	switch(localChoose)
+	else if (actionCopyMove == 'm') // move
 	{
-		case 1:
-			localFailIfExists = true;
-			break;
-		case 2:
-			localFailIfExists = false;
-			break;
-		default:
-			localFailIfExists = true; // true -- file rewriting protection -- by default
-			break;
+		// don't forget about c_str()!
+		if (MoveFile(localOldFilePath.c_str(), localNewFilePath.c_str())) // move file and watching the result immediatly
+		{
+			cout << "The file \"" << localOldFilePath << "\" has been successfully moved to file \"" << localNewFilePath << "\"!\n";
+		}
+		else
+		{
+			cout << "Something wrong! The file \"" << localOldFilePath << "\" hasn't been moved to file \"" << localNewFilePath << "\"!\n";
+			cout << "Last error code is \"" << GetLastError() << "\"\n";
+		}
 	}
+	else if (actionCopyMove == 'e') // extended move
+	{
+		string localChooseTwo = "2"; // because default
+		// next parameters presented in decimal code, but can be translated at once (for example "111111" is all of the flags (but all is uncorrect)!)
+		// MOVEFILE_COPY_ALLOWED = 2 (copy, than delete old, normal work), cannot be used with MOVEFILE_DELAY_UNTIL_REBOOT
+		// MOVEFILE_CREATE_HARDLINK = 16 ("Reserved for future use", i don't know what does it means)
+		// MOVEFILE_DELAY_UNTIL_REBOOT = 4 (waiting util reboot), cannot be used with MOVEFILE_COPY_ALLOWED
+		// MOVEFILE_FAIL_IF_NOT_TRACKABLE = 32 ("function fails, if the file is the lik source")
+		// MOVEFILE_REPLACE_EXISTING = 1 (replacing file)
+		// MOVEFILE_WRITE_THROUGH = 8 (doesn't return anything until it's ACTUALLY MOVE SOMETHING!)
+		unsigned long inFunctionNumber = 0;
+		while (inFunctionNumber == 0)
+		{
+			// because "CREATE_NEW" by default (1 is number for "CREATE_NEW")
+			cout << "Please, choose the possible flags for moving file (you CAN CHOOSE MANY -- JUST SPLIT NUMBERS BY SPACE):\n"
+			<< "1 -- MOVEFILE_REPLACE_EXISTING (replacing existing, it it exists)\n"
+			<< "2 -- MOVEFILE_COPY_ALLOWED (classic move) -- DEFAULT\n"
+			<< "4 -- MOVEFILE_DELAY_UNTIL_REBOOT (moving after rebooting the system)\n"
+			<< "8 -- MOVEFILE_WRITE_THROUGH (moving file, than returning value)\n"
+			<< "16 -- MOVEFILE_CREATE_HARDLINK\n"
+			<< "32 -- MOVEFILE_FAIL_IF_NOT_TRACKABLE\n";
+			fflush(stdin);
+			std::getline(std::cin, localChooseTwo);
 
-	// don't forget about c_str()!
-	if (CopyFile(localOldFilePath.c_str(), localNewFilePath.c_str(), localFailIfExists)) // copy file and watching the result immediatly
-	{
-		cout << "The file \"" << localOldFilePath << "\" has been successfully copied to file \"" << localNewFilePath << "\"!\n";
-	}
-	else
-	{
-		cout << "Something wrong! The file \"" << localOldFilePath << "\" hasn't been copied to file \"" << localNewFilePath << "\"!\n";
+			// spit the string
+			std::string s = string(localChooseTwo);
+			std::string delimiter = " ";
+
+			int i = 0;
+			size_t pos = 0;
+			std::string token;
+			std::vector<string> v;
+			std::vector<int> vect{1, 2, 4, 8, 16, 32};
+			while ((pos = s.find(delimiter)) != std::string::npos)
+			{
+				int tmpNumber = 0;
+			    token = s.substr(0, pos);
+			    v.push_back(token);
+			    tmpNumber = std::stoi(token);
+			    if (std::find(vect.begin(), vect.end(), tmpNumber) != vect.end())
+			    {
+			    	inFunctionNumber = inFunctionNumber + tmpNumber;
+			    	vect.erase(std::remove(vect.begin(), vect.end(), tmpNumber), vect.end());
+			    }
+			    //std::cout << token << std::endl;
+			    s.erase(0, pos + delimiter.length());
+			}
+
+			int newTMPNumber = std::stoi(s);
+			if (std::find(vect.begin(), vect.end(), newTMPNumber) != vect.end())
+			{
+			    inFunctionNumber = inFunctionNumber + newTMPNumber;
+			    vect.erase(std::remove(vect.begin(), vect.end(), newTMPNumber), vect.end());
+			}
+
+			//cout << inFunctionNumber;
+
+			//std::cout << s << std::endl;
+			// end split of the string
+
+			if (inFunctionNumber == 0)
+			{
+				cout << "Try again!\n";
+			}
+		}
+		// don't forget about c_str()!
+		if (MoveFileEx(localOldFilePath.c_str(), localNewFilePath.c_str(), (DWORD)inFunctionNumber)) // extended move file and watching the result immediatly
+		{
+			cout << "The file \"" << localOldFilePath << "\" has been successfully moved to file \"" << localNewFilePath << "\"!\n";
+		}
+		else
+		{
+			cout << "Something wrong! The file \"" << localOldFilePath << "\" hasn't been moved to file \"" << localNewFilePath << "\"!\n";
+			cout << "Last error code is \"" << GetLastError() << "\"\n"; // here i need to insert last error text string
+		}
 	}
 }
