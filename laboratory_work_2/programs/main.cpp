@@ -161,6 +161,34 @@ int main (int argc, char* argv[]) // i've finally understood what it means (argc
 	return 0;
 }
 
+// UTILITIES
+
+string NumberBoolToWordBool (bool localBool, bool localRegister)
+{
+	string localWordBool;
+	if (localBool == true && localRegister == false)
+	{
+		localWordBool = "true";
+	}
+	else if (localBool == true && localRegister == true)
+	{
+		localWordBool = "TRUE";
+	}
+	else if (localBool == false && localRegister == false)
+	{
+		localWordBool = "false";
+	}
+	else if (localBool == false && localRegister == true)
+	{
+		localWordBool = "FALSE";
+	}
+	else
+	{
+		localWordBool = "false";
+	}
+	return localWordBool;
+}
+
 // ---------- 0 -- GET DISK NAME ----------
 
 string GetDiskName ()
@@ -264,54 +292,54 @@ void LocalGetSystemInfo()
 
 	// DWORD dwOemId output
 
-	cout << "    OEM ID (obsolete member): " << localSystemInfo.dwOemId << "\n";
+	cout << "    OEM ID (obsolete member):                                                 " << localSystemInfo.dwOemId << "\n";
 
 	// WORD wProcessorArchitecture output
 
 	if (localSystemInfo.wProcessorArchitecture == PROCESSOR_ARCHITECTURE_AMD64) // number 9
 	{
-		cout << "    Processor architecture of the installed OS: " << localSystemInfo.wProcessorArchitecture << " -- " << "x64 (AMD or Intel)\n";
+		cout << "    Processor architecture of the installed OS:                               " << localSystemInfo.wProcessorArchitecture << " -- " << "x64 (AMD or Intel)\n";
 	}
 	else if (localSystemInfo.wProcessorArchitecture == PROCESSOR_ARCHITECTURE_ARM) // number 5
 	{
-		cout << "    Processor architecture of the installed OS: " << localSystemInfo.wProcessorArchitecture << " -- " << "ARM\n";
+		cout << "    Processor architecture of the installed OS:                               " << localSystemInfo.wProcessorArchitecture << " -- " << "ARM\n";
 	}
 	else if (localSystemInfo.wProcessorArchitecture == 0x000c /*PROCESSOR_ARCHITECTURE_ARM64*/) // number 12; with "PROCESSOR_ARCHITECTURE_ARM64" it doesn't work
 	{
-		cout << "    Processor architecture of the installed OS: " << localSystemInfo.wProcessorArchitecture << " -- " << "ARM64\n";
+		cout << "    Processor architecture of the installed OS:                               " << localSystemInfo.wProcessorArchitecture << " -- " << "ARM64\n";
 	}
 	else if (localSystemInfo.wProcessorArchitecture == PROCESSOR_ARCHITECTURE_IA64) // number 6
 	{
-		cout << "    Processor architecture of the installed OS: " << localSystemInfo.wProcessorArchitecture << " -- " << "Intel Itanium-based\n";
+		cout << "    Processor architecture of the installed OS:                               " << localSystemInfo.wProcessorArchitecture << " -- " << "Intel Itanium-based\n";
 	}
 	else if (localSystemInfo.wProcessorArchitecture == PROCESSOR_ARCHITECTURE_INTEL) // number 0
 	{
-		cout << "    Processor architecture of the installed OS: " << localSystemInfo.wProcessorArchitecture << " -- " << "x86\n";
+		cout << "    Processor architecture of the installed OS:                               " << localSystemInfo.wProcessorArchitecture << " -- " << "x86\n";
 	}
 	else if (localSystemInfo.wProcessorArchitecture == PROCESSOR_ARCHITECTURE_UNKNOWN) // number 0xffff
 	{
-		cout << "    Processor architecture of the installed OS: " << localSystemInfo.wProcessorArchitecture << " -- " << "Unknown architecture.\n";
+		cout << "    Processor architecture of the installed OS:                               " << localSystemInfo.wProcessorArchitecture << " -- " << "Unknown architecture.\n";
 	}
 	else // other number
 	{
-		cout << "    Processor architecture of the installed OS: " << localSystemInfo.wProcessorArchitecture << " -- " << "THIS NUMBER DOESN'T MEAN ANYTHING\n";
+		cout << "    Processor architecture of the installed OS:                               " << localSystemInfo.wProcessorArchitecture << " -- " << "THIS NUMBER DOESN'T MEAN ANYTHING\n";
 	}
 
 	// WORD wReserved output
 
-	cout << "    This member is reserved for future use: " << localSystemInfo.wReserved << "\n";
+	cout << "    This member is reserved for future use:                                   " << localSystemInfo.wReserved << "\n";
 
 	// DWORD dwPageSize output
 
-	cout << "    Page size and the granularity of page protection and commitment: " << localSystemInfo.dwPageSize << "\n";
+	cout << "    Page size and the granularity of page protection and commitment:          " << localSystemInfo.dwPageSize << "\n";
 
 	// LPVOID lpMinimumApplicationAddress output
 
-	cout << "    Lowest memory address accessible to applications and DLLs: " << localSystemInfo.lpMinimumApplicationAddress << "\n";
+	cout << "    Lowest memory address accessible to applications and DLLs:                " << localSystemInfo.lpMinimumApplicationAddress << "\n";
 
 	// LPVOID lpMaximumApplicationAddress output
 
-	cout << "    Highest memory address accessible to applications and DLLs: " << localSystemInfo.lpMaximumApplicationAddress << "\n";
+	cout << "    Highest memory address accessible to applications and DLLs:               " << localSystemInfo.lpMaximumApplicationAddress << "\n";
 
 	// DWORD_PTR dwActiveProcessorMask output
 
@@ -319,29 +347,29 @@ void LocalGetSystemInfo()
 
 	// DWORD dwNumberOfProcessors output
 
-	cout << "    Logical processors in the current group: " << localSystemInfo.dwNumberOfProcessors << "\n";
+	cout << "    Logical processors in the current group:                                  " << localSystemInfo.dwNumberOfProcessors << "\n";
 
 	// DWORD dwProcessorType output
 
 	if (localSystemInfo.dwProcessorType == PROCESSOR_INTEL_386) // number 386
 	{
-		cout << "    Processor type (obsolete member): " << localSystemInfo.dwProcessorType << " -- " << "PROCESSOR_INTEL_386\n";
+		cout << "    Processor type (obsolete member):                                         " << localSystemInfo.dwProcessorType << " -- " << "PROCESSOR_INTEL_386\n";
 	}
 	else if (localSystemInfo.dwProcessorType == PROCESSOR_INTEL_486) // number 486
 	{
-		cout << "    Processor type (obsolete member): " << localSystemInfo.dwProcessorType << " -- " << "PROCESSOR_INTEL_486\n";
+		cout << "    Processor type (obsolete member):                                         " << localSystemInfo.dwProcessorType << " -- " << "PROCESSOR_INTEL_486\n";
 	}
 	else if (localSystemInfo.dwProcessorType == PROCESSOR_INTEL_PENTIUM) // number 586; with "PROCESSOR_ARCHITECTURE_ARM64" it doesn't work
 	{
-		cout << "    Processor type (obsolete member): " << localSystemInfo.dwProcessorType << " -- " << "PROCESSOR_INTEL_PENTIUM\n";
+		cout << "    Processor type (obsolete member):                                         " << localSystemInfo.dwProcessorType << " -- " << "PROCESSOR_INTEL_PENTIUM\n";
 	}
 	else if (localSystemInfo.dwProcessorType == PROCESSOR_INTEL_IA64) // number 2200
 	{
-		cout << "    Processor type (obsolete member): " << localSystemInfo.dwProcessorType << " -- " << "PROCESSOR_INTEL_IA64\n";
+		cout << "    Processor type (obsolete member):                                         " << localSystemInfo.dwProcessorType << " -- " << "PROCESSOR_INTEL_IA64\n";
 	}
 	else if (localSystemInfo.dwProcessorType == PROCESSOR_AMD_X8664) // number 8664
 	{
-		cout << "    Processor type (obsolete member): " << localSystemInfo.dwProcessorType << " -- " << "PROCESSOR_AMD_X8664\n";
+		cout << "    Processor type (obsolete member):                                         " << localSystemInfo.dwProcessorType << " -- " << "PROCESSOR_AMD_X8664\n";
 	}
 	/*else if (localSystemInfo.dwProcessorType == PROCESSOR_ARM) // Reserved
 	{
@@ -349,12 +377,12 @@ void LocalGetSystemInfo()
 	}*/
 	else // other number
 	{
-		cout << "    Processor type (obsolete member): " << localSystemInfo.dwProcessorType << " -- " << "THIS NUMBER DOESN'T MEAN ANYTHING\n";
+		cout << "    Processor type (obsolete member):                                         " << localSystemInfo.dwProcessorType << " -- " << "THIS NUMBER DOESN'T MEAN ANYTHING\n";
 	}
 
 	// DWORD dwAllocationGranularity output
 
-	cout << "    Granularity of virtual memory aloocation adress: 0x" << hex << localSystemInfo.dwAllocationGranularity << dec << "\n";
+	cout << "    Granularity of virtual memory aloocation adress:                          0x" << hex << localSystemInfo.dwAllocationGranularity << dec << "\n";
 
 	// WORD wProcessorLevel output
 
@@ -363,7 +391,46 @@ void LocalGetSystemInfo()
 	If wProcessorArchitecture is PROCESSOR_ARCHITECTURE_IA64, wProcessorLevel is set to 1.
 	*/
 
-	cout << "    Architecture-dependent processor level: " << localSystemInfo.wProcessorLevel << "\n";
+	cout << "    Architecture-dependent processor level:                                   " << localSystemInfo.wProcessorLevel << "\n";
+
+	// Procaessor features output (it's not a part of the structure)
+
+	cout << "    Processor features presentation:\n";
+
+	cout << "        64-bit load/store atomic instructions are available:                            " << IsProcessorFeaturePresent(PF_ARM_64BIT_LOADSTORE_ATOMIC) << "\n";
+	cout << "        Divide instructions are available:                                              " << IsProcessorFeaturePresent(PF_ARM_DIVIDE_INSTRUCTION_AVAILABLE) << "\n";
+	cout << "        External cache is available:                                                    " << IsProcessorFeaturePresent(PF_ARM_EXTERNAL_CACHE_AVAILABLE) << "\n";
+	cout << "        Floating-point multiply-accumulate instruction is available:                    " << IsProcessorFeaturePresent(PF_ARM_FMAC_INSTRUCTIONS_AVAILABLE) << "\n";
+	cout << "        VFP/Neon: 32 x 64bit register bank is present:                                  " << IsProcessorFeaturePresent(PF_ARM_VFP_32_REGISTERS_AVAILABLE) << "\n";
+	//cout << "        VFP/Neon: 32 x 64bit register bank is present (other flag): " << IsProcessorFeaturePresent(PF_ARM_VFP_EXTENDED_REGISTERS) << "\n";
+	cout << "        3D-Now instruction set is available:                                            " << IsProcessorFeaturePresent(PF_3DNOW_INSTRUCTIONS_AVAILABLE) << "\n";
+
+	cout << "        Processor channels are enabled:                                                 " << IsProcessorFeaturePresent(PF_CHANNELS_ENABLED) << "\n";
+	cout << "        Atomic compare and exchange operation (cmpxchg) is available:                   " << IsProcessorFeaturePresent(PF_COMPARE_EXCHANGE_DOUBLE) << "\n";
+	cout << "        Atomic compare and exchange 128-bit operation (cmpxchg16b) is available:        " << IsProcessorFeaturePresent(PF_COMPARE_EXCHANGE128) << "\n";
+	cout << "        Atomic compare 64 and exchange 128-bit operation (cmp8xchg16) is available:     " << IsProcessorFeaturePresent(PF_COMPARE64_EXCHANGE128) << "\n";
+
+	cout << "        _fastfail() is available:                                                       " << IsProcessorFeaturePresent(PF_FASTFAIL_AVAILABLE) << "\n";
+	cout << "        Floating-point operations are emulated using a software emulator:               " << IsProcessorFeaturePresent(PF_FLOATING_POINT_EMULATED) << "\n";
+	cout << "        On a Pentium, a floating-point precision error can occur in rare circumstances: " << IsProcessorFeaturePresent(PF_FLOATING_POINT_PRECISION_ERRATA) << "\n";
+	cout << "        MMX instruction set is available:                                               " << IsProcessorFeaturePresent(PF_MMX_INSTRUCTIONS_AVAILABLE) << "\n";
+
+	cout << "        Data execution prevention is enabled:                                           " << IsProcessorFeaturePresent(PF_NX_ENABLED) << "\n";
+	cout << "        Processor is PAE-enabled:                                                       " << IsProcessorFeaturePresent(PF_PAE_ENABLED) << "\n";
+	cout << "        RDTSC instruction is available:                                                 " << IsProcessorFeaturePresent(PF_RDTSC_INSTRUCTION_AVAILABLE) << "\n";
+	cout << "        RDFSBASE, RDGSBASE, WRFSBASE, and WRGSBASE instructions are available:          " << IsProcessorFeaturePresent(PF_RDWRFSGSBASE_AVAILABLE) << "\n";
+
+	cout << "        Second Level Address Translation is supported by the hardware:                  " << IsProcessorFeaturePresent(PF_SECOND_LEVEL_ADDRESS_TRANSLATION) << "\n";
+	cout << "        SSE3 instruction set is available:                                              " << IsProcessorFeaturePresent(PF_SSE3_INSTRUCTIONS_AVAILABLE) << "\n";
+	cout << "        Virtualization is enabled in the firmware and made available by the OS:         " << IsProcessorFeaturePresent(PF_VIRT_FIRMWARE_ENABLED) << "\n";
+	cout << "        SSE instruction set is available:                                               " << IsProcessorFeaturePresent(PF_XMMI_INSTRUCTIONS_AVAILABLE) << "\n";
+
+	cout << "        SSE2 instruction set is available:                                              " << IsProcessorFeaturePresent(PF_XMMI64_INSTRUCTIONS_AVAILABLE) << "\n";
+	cout << "        Processor implements the XSAVE and XRSTOR instructions:                         " << IsProcessorFeaturePresent(PF_XSAVE_ENABLED) << "\n";
+	//cout << "        ARM processor implements the the ARM v8 instructions set: " << IsProcessorFeaturePresent(PF_ARM_V8_INSTRUCTIONS_AVAILABLE) << "\n";
+	//cout << "        ARM processor implements the ARM v8 extra cryptographic instructions (i.e. AES, SHA1 and SHA2): " << IsProcessorFeaturePresent(PF_ARM_V8_CRYPTO_INSTRUCTIONS_AVAILABLE) << "\n";
+	//cout << "        ARM processor implements the ARM v8 extra CRC32 instructions: " << IsProcessorFeaturePresent(PF_ARM_V8_CRC32_INSTRUCTIONS_AVAILABLE) << "\n";
+	//cout << "        ARM processor implements the ARM v8.1 atomic instructions (e.g. CAS, SWP): " << IsProcessorFeaturePresent(PF_ARM_V81_ATOMIC_INSTRUCTIONS_AVAILABLE) << "\n";
 
 	// WORD wProcessorRevision output
 
@@ -381,9 +448,9 @@ void LocalGetSystemInfo()
 	Reserved.
 	*/
 
-	cout << "    Architecture-dependent processor revision: 0x" << hex << localSystemInfo.wProcessorRevision << dec << "\n";
+	cout << "    Architecture-dependent processor revision:                                0x" << hex << localSystemInfo.wProcessorRevision << dec << "\n";
 
-	if (localSystemInfo.dwProcessorType == PROCESSOR_INTEL_386 || localSystemInfo.dwProcessorType == PROCESSOR_INTEL_486)
+	/*if (localSystemInfo.dwProcessorType == PROCESSOR_INTEL_386 || localSystemInfo.dwProcessorType == PROCESSOR_INTEL_486)
 	{
 		if ((localSystemInfo.wProcessorRevision / 256) == 0xff)
 		{
@@ -402,7 +469,7 @@ void LocalGetSystemInfo()
 		cout << "        Stepping: " << (localSystemInfo.wProcessorRevision % 256) << "\n";
 	}
 	else
-	{}
+	{}*/
 }
 
 // ---------- 2 -- LOCAL GLOBAL MEMORY STATUS ----------
@@ -558,6 +625,118 @@ typedef struct _MEMORY_BASIC_INFORMATION {
 */
 
 void LocalVirtualQuery ()
+{
+	DWORD localAdress = 0x11376077;
+	//DWORD localAdress = -1; // creating adress variable
+	MEMORY_BASIC_INFORMATION localBuffer; // creating buffer for information write
+	SIZE_T localLength; // creating size variable (for what?)
+
+	do
+	{
+		cout << "Please, input virtual adress space (in hex, 0x<hex number>): ";
+		cin >> hex >> localAdress >> dec;
+	} while (localAdress < 0x00000000 || localAdress > 0xffffffff);
+
+	// The return value is the actual number of bytes returned in the information buffer.
+	// If the function fails, the return value is zero. To get extended error information, call GetLastError. Possible error values include ERROR_INVALID_PARAMETER.
+	SIZE_T localVirtualQuery = VirtualQuery ((LPCVOID)localAdress, &localBuffer, sizeof(localBuffer));
+
+	// Physical memory refers to the actual RAM of the system
+	if (localVirtualQuery != 0)
+	{
+		cout << "Physical memory (RAM) information:\n"; // information output
+
+		// PVOID BaseAddress output
+
+		cout << "    Pointer to the base address of the region of pages:  " << localBuffer.BaseAddress << "\n";
+
+		// PVOID AllocationBase output
+
+		cout << "    Pointer -- // -- allocated by the VirtualAlloc:      " << localBuffer.AllocationBase << "\n";
+
+		// DWORD AllocationProtect output
+
+		cout << "    Memory protection option (for initially allocation): " << localBuffer.AllocationProtect << "\n";
+
+		// WORD PartitionId output
+
+		//cout << "    Partition ID (?): " << localBuffer.PartitionId << "\n"; // compiler can't recognize that
+
+		// SIZE_T RegionSize output
+
+		cout << "    Region's size from base address, pages identical attributes (in bytes): " << localBuffer.RegionSize << "\n";
+
+		// DWORD State output
+
+		if (localBuffer.State == MEM_COMMIT) // number 0x1000
+		{
+			cout << "    The state of the pages in the region:                0x" << hex << localBuffer.State << dec << " -- " << "Committed pages for which mem has been allocated\n";
+		}
+		else if (localBuffer.State == MEM_FREE) // number 0x10000
+		{
+			cout << "    The state of the pages in the region:                0x" << hex << localBuffer.State << dec << " -- " << "Free pages not for process, but for allocation\n";
+		}
+		else if (localBuffer.State == MEM_RESERVE) // number 0x2000
+		{
+			cout << "    The state of the pages in the region:                0x" << hex << localBuffer.State << dec << " -- " << "Reserved pages without allocation\n";
+		}
+		else // another number
+		{
+			cout << "    The state of the pages in the region:                0x" << hex << localBuffer.State << dec << " -- " << "THIS NUMBER DOESN'T MEAN ANYTHING\n";
+		}
+
+		// DWORD Protect output
+
+		cout << "    Access protection of the pages in the region:        " << localBuffer.Protect << "\n";
+
+		// DWORD Type output
+
+		if (localBuffer.Type == MEM_IMAGE) // number 0x1000000
+		{
+			cout << "    The type of pages in the region:                     0x" << hex << localBuffer.Type << dec << " -- " << "Memory pages -> image section\n";
+		}
+		else if (localBuffer.Type == MEM_MAPPED) // number 0x40000
+		{
+			cout << "    The type of pages in the region:                     0x" << hex << localBuffer.Type << dec << " -- " << "Memory pages -> section\n";
+		}
+		else if (localBuffer.Type == MEM_PRIVATE) // number 0x20000
+		{
+			cout << "    The type of pages in the region:                     0x" << hex << localBuffer.Type << dec << " -- " << "Memory pages -> private\n";
+		}
+		else // another number
+		{
+			cout << "    The type of pages in the region:                     0x" << hex << localBuffer.Type << dec << " -- " << "THIS NUMBER DOESN'T MEAN ANYTHING\n";
+		}
+	}
+	else
+	{
+		cout << "Something went wrong! Last error code: " << GetLastError() << "\n";
+	}
+}
+
+// ---------- 4 -- LOCAL VIRTUAL ALLOC ----------
+
+/*
+LPVOID VirtualAlloc(
+  [in, optional] LPVOID lpAddress,
+  [in]           SIZE_T dwSize,
+  [in]           DWORD  flAllocationType,
+  [in]           DWORD  flProtect
+);
+
+typedef struct _MEMORY_BASIC_INFORMATION {
+  PVOID  BaseAddress;
+  PVOID  AllocationBase;
+  DWORD  AllocationProtect;
+  WORD   PartitionId;
+  SIZE_T RegionSize;
+  DWORD  State;
+  DWORD  Protect;
+  DWORD  Type;
+} MEMORY_BASIC_INFORMATION, *PMEMORY_BASIC_INFORMATION;
+*/
+
+void LocalVirtualAlloc ()
 {
 	DWORD localAdress = 0x11376077;
 	//DWORD localAdress = -1; // creating adress variable
