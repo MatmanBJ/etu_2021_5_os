@@ -37,6 +37,8 @@ string currentPath = "c:\\"; // the current working path is disc "c:/" by defaul
 
 void LocalGetSystemInfo ();
 void LocalGlobalMemoryStatus ();
+void LocalGlobalMemoryStatusEx ();
+void LocalVirtualQuery ();
 
 string GetDiskName ();
 void MainMenu ();
@@ -79,6 +81,12 @@ int main (int argc, char* argv[]) // i've finally understood what it means (argc
 				break;
 			case 102:
 				LocalGlobalMemoryStatus();
+				break;
+			case 103:
+				LocalGlobalMemoryStatusEx();
+				break;
+			case 104:
+				LocalVirtualQuery();
 				break;
 			case 0:
 				cout << "Goodbye!";
@@ -172,6 +180,8 @@ void MainMenu ()
 {
 	cout << "101 -- F1\n";
 	cout << "102 -- F2\n";
+	cout << "103 -- F3\n";
+	cout << "104 -- F4\n";
 	cout << "\n";
 	cout << "Please, choose the menu item:\n";
 	cout << "0 -- COMMON:\n";
@@ -395,7 +405,7 @@ void LocalGetSystemInfo()
 	{}
 }
 
-// ---------- 1 -- LOCAL GLOBAL MEMORY STATUS ----------
+// ---------- 2 -- LOCAL GLOBAL MEMORY STATUS ----------
 
 /*
 void GlobalMemoryStatus(
@@ -418,7 +428,7 @@ void LocalGlobalMemoryStatus ()
 {
 	MEMORYSTATUS localMemoryStatus; // creating structure
 	GlobalMemoryStatus(&localMemoryStatus); // sending the pointer and getting the information
-	cout << "Memory information:\n"; // information output
+	cout << "Physical memory (RAM) information:\n"; // information output
 
 	// DWORD dwLength output
 
@@ -451,6 +461,190 @@ void LocalGlobalMemoryStatus ()
 	// SIZE_T dwAvailVirtual output
 
 	cout << "    Unreserved & uncommitted VAS's user-mode portion size (in bytes): " << localMemoryStatus.dwAvailVirtual << "\n";
+}
+
+// ---------- 2 -- LOCAL GLOBAL MEMORY STATUS EX ----------
+
+/*
+BOOL GlobalMemoryStatusEx(
+  LPMEMORYSTATUSEX lpBuffer
+);
+
+typedef struct _MEMORYSTATUSEX {
+  DWORD     dwLength;
+  DWORD     dwMemoryLoad;
+  DWORDLONG ullTotalPhys;
+  DWORDLONG ullAvailPhys;
+  DWORDLONG ullTotalPageFile;
+  DWORDLONG ullAvailPageFile;
+  DWORDLONG ullTotalVirtual;
+  DWORDLONG ullAvailVirtual;
+  DWORDLONG ullAvailExtendedVirtual;
+} MEMORYSTATUSEX, *LPMEMORYSTATUSEX;
+*/
+
+void LocalGlobalMemoryStatusEx ()
+{
+	MEMORYSTATUSEX localMemoryStatusEx; // creating structure
+	localMemoryStatusEx.dwLength = sizeof (localMemoryStatusEx); // necessarily, without it it doesn't work!!!
+	bool localFlag = GlobalMemoryStatusEx(&localMemoryStatusEx); // sending the pointer and getting the information
+
+	// Physical memory refers to the actual RAM of the system
+	if (localFlag == true)
+	{
+		cout << "Physical memory (RAM) information:\n"; // information output
+
+		// DWORD dwLength output
+
+		cout << "    MEMORYSTATUSEX structure size (in bytes): " << localMemoryStatusEx.dwLength << "\n";
+
+		// DWORD dwMemoryLoad output
+
+		cout << "    Approximate physical memory use (in %): " << localMemoryStatusEx.dwMemoryLoad << "\n";
+
+		// DWORDLONG ullTotalPhys output
+
+		cout << "    Amount of physical memory (in bytes):   " << localMemoryStatusEx.ullTotalPhys << "\n";
+
+		// DWORDLONG ullAvailPhys output
+
+		cout << "    Avaliable physical memory (in bytes):   " << localMemoryStatusEx.ullAvailPhys << "\n";
+
+		// DWORDLONG ullTotalPageFile output
+
+		cout << "    Commited memory limit size, PM + page file - overhead (in bytes): " << localMemoryStatusEx.ullTotalPageFile << "\n";
+
+		// DWORDLONG ullAvailPageFile output
+
+		cout << "    Max memory amount current process can commit (in bytes):          " << localMemoryStatusEx.ullAvailPageFile << "\n";
+
+		// DWORDLONG ullTotalVirtual output
+
+		cout << "    VAS's user-mode portion, who call processes, size (in bytes):     " << localMemoryStatusEx.ullTotalVirtual << "\n";
+
+		// DWORDLONG ullAvailVirtual output
+
+		cout << "    Unreserved & uncommitted VAS's user-mode portion size (in bytes): " << localMemoryStatusEx.ullAvailVirtual << "\n";
+
+		// DWORDLONG ullAvailExtendedVirtual output
+
+		cout << "    Reserved value (equals 0): " << localMemoryStatusEx.ullAvailExtendedVirtual << "\n";
+	}
+	else
+	{
+		cout << "Something went wrong! Last error code: " << GetLastError() << "\n";
+	}
+}
+
+// ---------- 3 -- LOCAL VIRTUAL QUERY ----------
+
+/*
+SIZE_T VirtualQuery(
+  LPCVOID                   lpAddress,
+  PMEMORY_BASIC_INFORMATION lpBuffer,
+  SIZE_T                    dwLength
+);
+
+typedef struct _MEMORY_BASIC_INFORMATION {
+  PVOID  BaseAddress;
+  PVOID  AllocationBase;
+  DWORD  AllocationProtect;
+  WORD   PartitionId;
+  SIZE_T RegionSize;
+  DWORD  State;
+  DWORD  Protect;
+  DWORD  Type;
+} MEMORY_BASIC_INFORMATION, *PMEMORY_BASIC_INFORMATION;
+*/
+
+void LocalVirtualQuery ()
+{
+	DWORD localAdress = 0x11376077;
+	//DWORD localAdress = -1; // creating adress variable
+	MEMORY_BASIC_INFORMATION localBuffer; // creating buffer for information write
+	SIZE_T localLength; // creating size variable (for what?)
+
+	do
+	{
+		cout << "Please, input virtual adress space (in hex, 0x<hex number>): ";
+		cin >> hex >> localAdress >> dec;
+	} while (localAdress < 0x00000000 || localAdress > 0xffffffff);
+
+	// The return value is the actual number of bytes returned in the information buffer.
+	// If the function fails, the return value is zero. To get extended error information, call GetLastError. Possible error values include ERROR_INVALID_PARAMETER.
+	SIZE_T localVirtualQuery = VirtualQuery ((LPCVOID)localAdress, &localBuffer, sizeof(localBuffer));
+
+	// Physical memory refers to the actual RAM of the system
+	if (localVirtualQuery != 0)
+	{
+		cout << "Physical memory (RAM) information:\n"; // information output
+
+		// PVOID BaseAddress output
+
+		cout << "    Pointer to the base address of the region of pages:  " << localBuffer.BaseAddress << "\n";
+
+		// PVOID AllocationBase output
+
+		cout << "    Pointer -- // -- allocated by the VirtualAlloc:      " << localBuffer.AllocationBase << "\n";
+
+		// DWORD AllocationProtect output
+
+		cout << "    Memory protection option (for initially allocation): " << localBuffer.AllocationProtect << "\n";
+
+		// WORD PartitionId output
+
+		//cout << "    Partition ID (?): " << localBuffer.PartitionId << "\n"; // compiler can't recognize that
+
+		// SIZE_T RegionSize output
+
+		cout << "    Region's size from base address, pages identical attributes (in bytes): " << localBuffer.RegionSize << "\n";
+
+		// DWORD State output
+
+		if (localBuffer.State == MEM_COMMIT) // number 0x1000
+		{
+			cout << "    The state of the pages in the region:                0x" << hex << localBuffer.State << dec << " -- " << "Committed pages for which mem has been allocated\n";
+		}
+		else if (localBuffer.State == MEM_FREE) // number 0x10000
+		{
+			cout << "    The state of the pages in the region:                0x" << hex << localBuffer.State << dec << " -- " << "Free pages not for process, but for allocation\n";
+		}
+		else if (localBuffer.State == MEM_RESERVE) // number 0x2000
+		{
+			cout << "    The state of the pages in the region:                0x" << hex << localBuffer.State << dec << " -- " << "Reserved pages without allocation\n";
+		}
+		else // another number
+		{
+			cout << "    The state of the pages in the region:                0x" << hex << localBuffer.State << dec << " -- " << "THIS NUMBER DOESN'T MEAN ANYTHING\n";
+		}
+
+		// DWORD Protect output
+
+		cout << "    Access protection of the pages in the region:        " << localBuffer.Protect << "\n";
+
+		// DWORD Type output
+
+		if (localBuffer.Type == MEM_IMAGE) // number 0x1000000
+		{
+			cout << "    The type of pages in the region:                     0x" << hex << localBuffer.Type << dec << " -- " << "Memory pages -> image section\n";
+		}
+		else if (localBuffer.Type == MEM_MAPPED) // number 0x40000
+		{
+			cout << "    The type of pages in the region:                     0x" << hex << localBuffer.Type << dec << " -- " << "Memory pages -> section\n";
+		}
+		else if (localBuffer.Type == MEM_PRIVATE) // number 0x20000
+		{
+			cout << "    The type of pages in the region:                     0x" << hex << localBuffer.Type << dec << " -- " << "Memory pages -> private\n";
+		}
+		else // another number
+		{
+			cout << "    The type of pages in the region:                     0x" << hex << localBuffer.Type << dec << " -- " << "THIS NUMBER DOESN'T MEAN ANYTHING\n";
+		}
+	}
+	else
+	{
+		cout << "Something went wrong! Last error code: " << GetLastError() << "\n";
+	}
 }
 
 // ---------- 1 -- GET LOGICAL DRIVES ----------
