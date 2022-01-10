@@ -1,0 +1,53 @@
+GetSystemInfo():
+
+https://docs.microsoft.com/en-us/windows/win32/api/sysinfoapi/nf-sysinfoapi-getsysteminfo
+https://docs.microsoft.com/en-us/windows/win32/api/sysinfoapi/ns-sysinfoapi-system_info
+https://docs.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-isprocessorfeaturepresent
+https://docs.microsoft.com/en-us/previous-versions/windows/desktop/legacy/aa965225(v=vs.85)
+http://rusproject.narod.ru/winapi/i/isprocessorfeaturepresent.html
+https://cpp.hotexamples.com/ru/examples/-/-/GetSystemInfo/cpp-getsysteminfo-function-examples.html
+https://stackoverflow.com/questions/47023477/how-to-get-system-information-in-windows-with-c/47023542
+
+GlobalMemoryStatus():
+
+https://docs.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-globalmemorystatus
+https://docs.microsoft.com/en-us/windows/win32/api/winbase/ns-winbase-memorystatus
+https://docs.microsoft.com/en-us/windows/win32/api/sysinfoapi/nf-sysinfoapi-globalmemorystatusex
+https://docs.microsoft.com/en-us/windows/win32/api/sysinfoapi/ns-sysinfoapi-memorystatusex
+
+VirtualQuery():
+
+https://docs.microsoft.com/en-us/windows/win32/api/memoryapi/nf-memoryapi-virtualquery
+https://docs.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-memory_basic_information
+https://docs.microsoft.com/en-us/windows/win32/api/memoryapi/nf-memoryapi-virtualqueryex
+https://docs.microsoft.com/ru-ru/windows/win32/memory/virtual-address-space
+https://cpp.hotexamples.com/ru/examples/-/-/VirtualQuery/cpp-virtualquery-function-examples.html
+https://guidedhacking.com/threads/how-to-use-function-virtualquery.3423/?__cf_chl_jschl_tk__=pmd_mip4K2dlp_iZg3qUEkgrArDpQCZvZIdWeUNUPmQ.pFU-1634136243-0-gqNtZGzNAmWjcnBszQil
+
+VirtualAlloc():
+
+https://docs.microsoft.com/en-us/windows/win32/api/memoryapi/nf-memoryapi-virtualalloc
+https://docs.microsoft.com/en-us/windows/win32/api/memoryapi/nf-memoryapi-virtualfree
+https://docs.microsoft.com/en-us/windows/win32/memory/memory-protection-constants -- there is a values, i can send in the function
+https://docs.microsoft.com/ru-ru/windows/win32/winprog/windows-data-types -- datatypes
+https://habr.com/ru/post/129558/
+https://firststeps.ru/mfc/winapi/r.php?113
+https://docs.microsoft.com/en-us/windows/win32/api/memoryapi/nf-memoryapi-getlargepageminimum -- in help mode
+https://docs.microsoft.com/en-us/windows/win32/memory/address-windowing-extensions -- help
+https://docs.microsoft.com/en-us/windows/win32/api/memoryapi/nf-memoryapi-getwritewatch -- don't need
+https://docs.microsoft.com/en-us/windows/win32/api/memoryapi/nf-memoryapi-resetwritewatch -- don't need
+
+VirtualFree():
+
+https://docs.microsoft.com/en-us/windows/win32/api/memoryapi/nf-memoryapi-virtualfree
+
+VirtualProtect():
+
+https://docs.microsoft.com/en-us/windows/win32/api/memoryapi/nf-memoryapi-virtualprotect
+https://docs.microsoft.com/ru-ru/windows/win32/debug/system-error-codes--500-999-
+
+Other:
+
+https://docs.microsoft.com/ru-ru/windows/win32/memory/reserving-and-committing-memory
+https://docs.microsoft.com/ru-ru/windows/win32/memory/virtual-memory-functions
+https://docs.microsoft.com/ru-ru/windows/win32/memory/allocating-virtual-memory
