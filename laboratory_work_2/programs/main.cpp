@@ -39,6 +39,7 @@ void LocalGetSystemInfo ();
 void LocalGlobalMemoryStatus ();
 void LocalGlobalMemoryStatusEx ();
 void LocalVirtualQuery ();
+void LocalVirtualAlloc ();
 
 string GetDiskName ();
 void MainMenu ();
@@ -87,6 +88,9 @@ int main (int argc, char* argv[]) // i've finally understood what it means (argc
 				break;
 			case 104:
 				LocalVirtualQuery();
+				break;
+			case 105:
+				LocalVirtualAlloc();
 				break;
 			case 0:
 				cout << "Goodbye!";
@@ -210,6 +214,7 @@ void MainMenu ()
 	cout << "102 -- F2\n";
 	cout << "103 -- F3\n";
 	cout << "104 -- F4\n";
+	cout << "105 -- F5\n";
 	cout << "\n";
 	cout << "Please, choose the menu item:\n";
 	cout << "0 -- COMMON:\n";
@@ -397,40 +402,44 @@ void LocalGetSystemInfo()
 
 	cout << "    Processor features presentation:\n";
 
-	cout << "        64-bit load/store atomic instructions are available:                            " << IsProcessorFeaturePresent(PF_ARM_64BIT_LOADSTORE_ATOMIC) << "\n";
-	cout << "        Divide instructions are available:                                              " << IsProcessorFeaturePresent(PF_ARM_DIVIDE_INSTRUCTION_AVAILABLE) << "\n";
-	cout << "        External cache is available:                                                    " << IsProcessorFeaturePresent(PF_ARM_EXTERNAL_CACHE_AVAILABLE) << "\n";
-	cout << "        Floating-point multiply-accumulate instruction is available:                    " << IsProcessorFeaturePresent(PF_ARM_FMAC_INSTRUCTIONS_AVAILABLE) << "\n";
-	cout << "        VFP/Neon: 32 x 64bit register bank is present:                                  " << IsProcessorFeaturePresent(PF_ARM_VFP_32_REGISTERS_AVAILABLE) << "\n";
-	//cout << "        VFP/Neon: 32 x 64bit register bank is present (other flag): " << IsProcessorFeaturePresent(PF_ARM_VFP_EXTENDED_REGISTERS) << "\n";
-	cout << "        3D-Now instruction set is available:                                            " << IsProcessorFeaturePresent(PF_3DNOW_INSTRUCTIONS_AVAILABLE) << "\n";
+	cout << "        64-bit load/store atomic instructions are available:                            " << IsProcessorFeaturePresent(PF_ARM_64BIT_LOADSTORE_ATOMIC) << "\n"; // number 25
+	cout << "        Divide instructions are available:                                              " << IsProcessorFeaturePresent(PF_ARM_DIVIDE_INSTRUCTION_AVAILABLE) << "\n"; // number 24
+	cout << "        External cache is available:                                                    " << IsProcessorFeaturePresent(PF_ARM_EXTERNAL_CACHE_AVAILABLE) << "\n"; // number 26
+	cout << "        Floating-point multiply-accumulate instruction is available:                    " << IsProcessorFeaturePresent(PF_ARM_FMAC_INSTRUCTIONS_AVAILABLE) << "\n"; // number 27
+	cout << "        VFP/Neon: 32 x 64bit register bank is present:                                  " << IsProcessorFeaturePresent(PF_ARM_VFP_32_REGISTERS_AVAILABLE) << "\n"; // number 18
+	//cout << "        VFP/Neon: 32 x 64bit register bank is present (other flag):                     " << IsProcessorFeaturePresent(PF_ARM_VFP_EXTENDED_REGISTERS) << "\n";
+	cout << "        3D-Now instruction set is available:                                            " << IsProcessorFeaturePresent(PF_3DNOW_INSTRUCTIONS_AVAILABLE) << "\n"; // number 7
 
-	cout << "        Processor channels are enabled:                                                 " << IsProcessorFeaturePresent(PF_CHANNELS_ENABLED) << "\n";
-	cout << "        Atomic compare and exchange operation (cmpxchg) is available:                   " << IsProcessorFeaturePresent(PF_COMPARE_EXCHANGE_DOUBLE) << "\n";
-	cout << "        Atomic compare and exchange 128-bit operation (cmpxchg16b) is available:        " << IsProcessorFeaturePresent(PF_COMPARE_EXCHANGE128) << "\n";
-	cout << "        Atomic compare 64 and exchange 128-bit operation (cmp8xchg16) is available:     " << IsProcessorFeaturePresent(PF_COMPARE64_EXCHANGE128) << "\n";
+	cout << "        Processor channels are enabled:                                                 " << IsProcessorFeaturePresent(PF_CHANNELS_ENABLED) << "\n"; // number 16
+	cout << "        Atomic compare and exchange operation (cmpxchg) is available:                   " << IsProcessorFeaturePresent(PF_COMPARE_EXCHANGE_DOUBLE) << "\n"; // number 2
+	cout << "        Atomic compare and exchange 128-bit operation (cmpxchg16b) is available:        " << IsProcessorFeaturePresent(PF_COMPARE_EXCHANGE128) << "\n"; // number 14
+	cout << "        Atomic compare 64 and exchange 128-bit operation (cmp8xchg16) is available:     " << IsProcessorFeaturePresent(PF_COMPARE64_EXCHANGE128) << "\n"; // number 15
 
-	cout << "        _fastfail() is available:                                                       " << IsProcessorFeaturePresent(PF_FASTFAIL_AVAILABLE) << "\n";
-	cout << "        Floating-point operations are emulated using a software emulator:               " << IsProcessorFeaturePresent(PF_FLOATING_POINT_EMULATED) << "\n";
-	cout << "        On a Pentium, a floating-point precision error can occur in rare circumstances: " << IsProcessorFeaturePresent(PF_FLOATING_POINT_PRECISION_ERRATA) << "\n";
-	cout << "        MMX instruction set is available:                                               " << IsProcessorFeaturePresent(PF_MMX_INSTRUCTIONS_AVAILABLE) << "\n";
+	cout << "        _fastfail() is available:                                                       " << IsProcessorFeaturePresent(PF_FASTFAIL_AVAILABLE) << "\n"; // number 23
+	cout << "        Floating-point operations are emulated using a software emulator:               " << IsProcessorFeaturePresent(PF_FLOATING_POINT_EMULATED) << "\n"; // number 1
+	cout << "        On a Pentium, a floating-point precision error can occur in rare circumstances: " << IsProcessorFeaturePresent(PF_FLOATING_POINT_PRECISION_ERRATA) << "\n"; // number 0
+	cout << "        MMX instruction set is available:                                               " << IsProcessorFeaturePresent(PF_MMX_INSTRUCTIONS_AVAILABLE) << "\n"; // number 3
 
-	cout << "        Data execution prevention is enabled:                                           " << IsProcessorFeaturePresent(PF_NX_ENABLED) << "\n";
-	cout << "        Processor is PAE-enabled:                                                       " << IsProcessorFeaturePresent(PF_PAE_ENABLED) << "\n";
-	cout << "        RDTSC instruction is available:                                                 " << IsProcessorFeaturePresent(PF_RDTSC_INSTRUCTION_AVAILABLE) << "\n";
-	cout << "        RDFSBASE, RDGSBASE, WRFSBASE, and WRGSBASE instructions are available:          " << IsProcessorFeaturePresent(PF_RDWRFSGSBASE_AVAILABLE) << "\n";
+	cout << "        Data execution prevention is enabled:                                           " << IsProcessorFeaturePresent(PF_NX_ENABLED) << "\n"; // number 12
+	cout << "        Processor is PAE-enabled:                                                       " << IsProcessorFeaturePresent(PF_PAE_ENABLED) << "\n"; // number 9
+	cout << "        RDTSC instruction is available:                                                 " << IsProcessorFeaturePresent(PF_RDTSC_INSTRUCTION_AVAILABLE) << "\n"; // number 8
+	cout << "        RDFSBASE, RDGSBASE, WRFSBASE, and WRGSBASE instructions are available:          " << IsProcessorFeaturePresent(PF_RDWRFSGSBASE_AVAILABLE) << "\n"; // number 22
 
-	cout << "        Second Level Address Translation is supported by the hardware:                  " << IsProcessorFeaturePresent(PF_SECOND_LEVEL_ADDRESS_TRANSLATION) << "\n";
-	cout << "        SSE3 instruction set is available:                                              " << IsProcessorFeaturePresent(PF_SSE3_INSTRUCTIONS_AVAILABLE) << "\n";
-	cout << "        Virtualization is enabled in the firmware and made available by the OS:         " << IsProcessorFeaturePresent(PF_VIRT_FIRMWARE_ENABLED) << "\n";
-	cout << "        SSE instruction set is available:                                               " << IsProcessorFeaturePresent(PF_XMMI_INSTRUCTIONS_AVAILABLE) << "\n";
+	cout << "        Second Level Address Translation is supported by the hardware:                  " << IsProcessorFeaturePresent(PF_SECOND_LEVEL_ADDRESS_TRANSLATION) << "\n"; // number 20
+	cout << "        SSE3 instruction set is available:                                              " << IsProcessorFeaturePresent(PF_SSE3_INSTRUCTIONS_AVAILABLE) << "\n"; // number 13
+	cout << "        Virtualization is enabled in the firmware and made available by the OS:         " << IsProcessorFeaturePresent(PF_VIRT_FIRMWARE_ENABLED) << "\n"; // number 21
+	cout << "        SSE instruction set is available:                                               " << IsProcessorFeaturePresent(PF_XMMI_INSTRUCTIONS_AVAILABLE) << "\n"; // number 6
 
-	cout << "        SSE2 instruction set is available:                                              " << IsProcessorFeaturePresent(PF_XMMI64_INSTRUCTIONS_AVAILABLE) << "\n";
-	cout << "        Processor implements the XSAVE and XRSTOR instructions:                         " << IsProcessorFeaturePresent(PF_XSAVE_ENABLED) << "\n";
+	cout << "        SSE2 instruction set is available:                                              " << IsProcessorFeaturePresent(PF_XMMI64_INSTRUCTIONS_AVAILABLE) << "\n"; // number 10
+	cout << "        Processor implements the XSAVE and XRSTOR instructions:                         " << IsProcessorFeaturePresent(PF_XSAVE_ENABLED) << "\n"; // number 17
 	//cout << "        ARM processor implements the the ARM v8 instructions set: " << IsProcessorFeaturePresent(PF_ARM_V8_INSTRUCTIONS_AVAILABLE) << "\n";
 	//cout << "        ARM processor implements the ARM v8 extra cryptographic instructions (i.e. AES, SHA1 and SHA2): " << IsProcessorFeaturePresent(PF_ARM_V8_CRYPTO_INSTRUCTIONS_AVAILABLE) << "\n";
 	//cout << "        ARM processor implements the ARM v8 extra CRC32 instructions: " << IsProcessorFeaturePresent(PF_ARM_V8_CRC32_INSTRUCTIONS_AVAILABLE) << "\n";
 	//cout << "        ARM processor implements the ARM v8.1 atomic instructions (e.g. CAS, SWP): " << IsProcessorFeaturePresent(PF_ARM_V81_ATOMIC_INSTRUCTIONS_AVAILABLE) << "\n";
+	cout << "        ARM processor implements ARM v8 instructions set:                               " << IsProcessorFeaturePresent(29) << "\n"; // [crutch]
+	cout << "        ARM processor implements ARM v8 extra crypto instr-s (i.e. AES, SHA1, SHA2):    " << IsProcessorFeaturePresent(30) << "\n"; // [crutch]
+	cout << "        ARM processor implements ARM v8 extra CRC32 instructions:                       " << IsProcessorFeaturePresent(31) << "\n"; // [crutch]
+	cout << "        ARM processor implements ARM v8.1 atomic instructions (e.g. CAS, SWP):          " << IsProcessorFeaturePresent(34) << "\n"; // [crutch]
 
 	// WORD wProcessorRevision output
 
@@ -639,7 +648,9 @@ void LocalVirtualQuery ()
 
 	// The return value is the actual number of bytes returned in the information buffer.
 	// If the function fails, the return value is zero. To get extended error information, call GetLastError. Possible error values include ERROR_INVALID_PARAMETER.
-	SIZE_T localVirtualQuery = VirtualQuery ((LPCVOID)localAdress, &localBuffer, sizeof(localBuffer));
+	SIZE_T localVirtualQuery = VirtualQuery ((LPVOID)localAdress, &localBuffer, sizeof(localBuffer));
+	// LPVOID -- pointer
+	// LPCVOID -- pointer to constant
 
 	// Physical memory refers to the actual RAM of the system
 	if (localVirtualQuery != 0)
@@ -723,25 +734,19 @@ LPVOID VirtualAlloc(
   [in]           DWORD  flAllocationType,
   [in]           DWORD  flProtect
 );
-
-typedef struct _MEMORY_BASIC_INFORMATION {
-  PVOID  BaseAddress;
-  PVOID  AllocationBase;
-  DWORD  AllocationProtect;
-  WORD   PartitionId;
-  SIZE_T RegionSize;
-  DWORD  State;
-  DWORD  Protect;
-  DWORD  Type;
-} MEMORY_BASIC_INFORMATION, *PMEMORY_BASIC_INFORMATION;
 */
 
 void LocalVirtualAlloc ()
 {
+	int localChooseAllocation = 0;
+	int localChooseProtect = 0;
 	DWORD localAdress = 0x11376077;
+	DWORD localflAllocationType = 0;
+	DWORD localflProtect = 0;
 	//DWORD localAdress = -1; // creating adress variable
 	MEMORY_BASIC_INFORMATION localBuffer; // creating buffer for information write
 	SIZE_T localLength; // creating size variable (for what?)
+	SIZE_T localMemorySize = 4096;
 
 	do
 	{
@@ -751,10 +756,65 @@ void LocalVirtualAlloc ()
 
 	// The return value is the actual number of bytes returned in the information buffer.
 	// If the function fails, the return value is zero. To get extended error information, call GetLastError. Possible error values include ERROR_INVALID_PARAMETER.
-	SIZE_T localVirtualQuery = VirtualQuery ((LPCVOID)localAdress, &localBuffer, sizeof(localBuffer));
+	LPVOID localVirtualAlloc = VirtualAlloc (NULL, localMemorySize, MEM_RESERVE, PAGE_READWRITE);
+	// LPVOID -- pointer
+	// LPCVOID -- pointer to constant
+
+	while (localChooseAllocation < 1 && localChooseAllocation > 8)
+	{
+		cout << "Please, input the allocation type constant:\n"
+		<< "1 -- MEM_COMMIT (0x00001000)\n"
+		<< "2 -- MEM_RESERVE (0x00002000)\n"
+		<< "3 -- MEM_RESET (0x00080000)\n"
+		<< "4 -- MEM_RESET_UNDO (0x1000000)\n"
+		<< "5 -- MEM_LARGE_PAGES (0x20000000)\n"
+		<< "6 -- MEM_PHYSICAL (0x00400000)\n"
+		<< "7 -- MEM_TOP_DOWN (0x00100000)\n"
+		<< "8 -- MEM_WRITE_WATCH (0x00200000)\n"
+		<< "9 -- MEM_COMMIT | MEM_RESERVE"
+
+		cin >> localChooseAllocation;
+	}
+
+	while (localChooseProtect < 1 && localChooseProtect > 13)
+	{
+		cout << "Please, input the allocation type constant:\n"
+		<< "1 -- PAGE_EXECUTE (0x10)\n"
+		<< "2 -- PAGE_EXECUTE_READ (0x20)\n"
+		<< "3 -- PAGE_EXECUTE_READWRITE (0x40)\n"
+		<< "4 -- PAGE_EXECUTE_WRITECOPY (0x80)\n"
+		<< "5 -- PAGE_NOACCESS (0x01)\n"
+		<< "6 -- PAGE_READONLY (0x02)\n"
+		<< "7 -- PAGE_READWRITE (0x04)\n"
+		<< "8 -- PAGE_WRITECOPY (0x08)\n"
+		<< "9 -- PAGE_TARGETS_INVALID (0x40000000)\n"
+		<< "10 -- PAGE_TARGETS_NO_UPDATE (0x40000000)\n"
+		<< "11 -- PAGE_GUARD (0x100)\n"
+		<< "12 -- PAGE_NOCACHE (0x200)\n"
+		<< "13 -- PAGE_WRITECOMBINE (0x400)\n";
+
+		cin >> localChooseProtect;
+	}
+
+	if (localVirtualAlloc != NULL)
+	{
+		cout << "Allocation was successfull\n" << localVirtualAlloc << "\n";
+		if (VirtualFree (localVirtualAlloc, 0, MEM_RELEASE))
+		{
+			cout << "Free was successfull\n";
+		}
+		else
+		{
+			cout << "Free was NOT successfull" << endl;
+		}
+	}
+	else
+	{
+		cout << "Allocation was NOT successfull\n";
+	}
 
 	// Physical memory refers to the actual RAM of the system
-	if (localVirtualQuery != 0)
+	/*if (localVirtualQuery != 0)
 	{
 		cout << "Physical memory (RAM) information:\n"; // information output
 
@@ -780,15 +840,19 @@ void LocalVirtualAlloc ()
 
 		// DWORD State output
 
-		if (localBuffer.State == MEM_COMMIT) // number 0x1000
+		if (localBuffer.State == MEM_COMMIT) // number 0x00001000
 		{
 			cout << "    The state of the pages in the region:                0x" << hex << localBuffer.State << dec << " -- " << "Committed pages for which mem has been allocated\n";
 		}
-		else if (localBuffer.State == MEM_FREE) // number 0x10000
+		else if (localBuffer.State == MEM_RESERVE) // number 0x00002000
 		{
 			cout << "    The state of the pages in the region:                0x" << hex << localBuffer.State << dec << " -- " << "Free pages not for process, but for allocation\n";
 		}
-		else if (localBuffer.State == MEM_RESERVE) // number 0x2000
+		else if (localBuffer.State == MEM_RESET) // number 0x00080000
+		{
+			cout << "    The state of the pages in the region:                0x" << hex << localBuffer.State << dec << " -- " << "Reserved pages without allocation\n";
+		}
+		else if (localBuffer.State == MEM_RESET_UNDO) // number 0x1000000
 		{
 			cout << "    The state of the pages in the region:                0x" << hex << localBuffer.State << dec << " -- " << "Reserved pages without allocation\n";
 		}
@@ -823,7 +887,7 @@ void LocalVirtualAlloc ()
 	else
 	{
 		cout << "Something went wrong! Last error code: " << GetLastError() << "\n";
-	}
+	}*/
 }
 
 // ---------- 1 -- GET LOGICAL DRIVES ----------
