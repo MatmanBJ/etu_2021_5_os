@@ -27,11 +27,15 @@ API means "Application Programming Interface"
 #include <iostream> // just for working
 #include <string> // for the "string" type using
 #include <vector> // for the "vector" type using
+#include <tuple> // for list of all allocations
 #include <algorithm> // for the "find" function using
 
 using namespace std;
 
+typedef vector<tuple<LPVOID, SIZE_T, DWORD, DWORD>> LOCALLOC; // new thing for locating all local allocations
 string currentPath = "c:\\"; // the current working path is disc "c:/" by default!
+
+LOCALLOC listOfAllocations;
 
 // ---------- FUNCTION DECLARATION ----------
 
@@ -39,7 +43,14 @@ void LocalGetSystemInfo ();
 void LocalGlobalMemoryStatus ();
 void LocalGlobalMemoryStatusEx ();
 void LocalVirtualQuery ();
+void LocalListOfAllocations ();
+void LocalListOfAllocationsFree ();
 void LocalVirtualAlloc ();
+void LocalDataChangeCore (LPVOID localVirtualAlloc, SIZE_T localMemorySize);
+void LocalDataChangeIndependent ();
+void LocalVirtualProtect ();
+void LocalVirtualFreeCore (LPVOID locallpAddress, SIZE_T localdwSize);
+void LocalVirtualFreeIndependent ();
 
 string GetDiskName ();
 void MainMenu ();
@@ -83,14 +94,26 @@ int main (int argc, char* argv[]) // i've finally understood what it means (argc
 			case 102:
 				LocalGlobalMemoryStatus();
 				break;
-			case 103:
+			case 1022:
 				LocalGlobalMemoryStatusEx();
 				break;
-			case 104:
+			case 103:
 				LocalVirtualQuery();
 				break;
-			case 105:
+			case 104:
 				LocalVirtualAlloc();
+				break;
+			case 105:
+				LocalListOfAllocations();
+				break;
+			case 106:
+				LocalDataChangeIndependent();
+				break;
+			case 107:
+				LocalVirtualProtect ();
+				break;
+			case 108:
+				LocalVirtualFreeIndependent ();
 				break;
 			case 0:
 				cout << "Goodbye!";
@@ -162,6 +185,8 @@ int main (int argc, char* argv[]) // i've finally understood what it means (argc
 	}
 	while (flag != 0);
 
+	LocalListOfAllocationsFree ();
+
 	return 0;
 }
 
@@ -193,6 +218,33 @@ string NumberBoolToWordBool (bool localBool, bool localRegister)
 	return localWordBool;
 }
 
+bool BoolSafetyInput ()
+{
+	string localNewVariable;
+	bool localNewBool = false;
+	bool localFlag = true;
+    while (localFlag == true)
+    {
+    	fflush(stdin);
+    	getline(cin, localNewVariable);
+        if (localNewVariable.compare("0") == 0)
+        {
+            localNewBool = false;
+            localFlag = false;
+        }
+        else if (localNewVariable.compare("1") == 0)
+        {
+        	localNewBool = true;
+        	localFlag = false;
+        }
+        else
+        {
+	        cout << "Wrong bool number (use only 0 or 1)!\n";
+        }
+    }
+	return localNewBool;
+}
+
 // ---------- 0 -- GET DISK NAME ----------
 
 string GetDiskName ()
@@ -212,9 +264,12 @@ void MainMenu ()
 {
 	cout << "101 -- F1\n";
 	cout << "102 -- F2\n";
-	cout << "103 -- F3\n";
-	cout << "104 -- F4\n";
-	cout << "105 -- F5\n";
+	cout << "1022 -- F3\n";
+	cout << "103 -- F4\n";
+	cout << "104 -- F5\n";
+	cout << "106 -- F6\n";
+	cout << "107 -- F7\n";
+	cout << "108 -- F8\n";
 	cout << "\n";
 	cout << "Please, choose the menu item:\n";
 	cout << "0 -- COMMON:\n";
@@ -725,7 +780,42 @@ void LocalVirtualQuery ()
 	}
 }
 
-// ---------- 4 -- LOCAL VIRTUAL ALLOC ----------
+// ---------- 5 -- LIST OF ALLOCATIONS ----------
+
+void LocalListOfAllocations ()
+{
+	if (listOfAllocations.size() > 0)
+	{
+		//listOfAllocations.push_back(tuple<LPVOID, SIZE_T, DWORD, DWORD>((LPVOID)0x00000000, 4096, MEM_RESET, MEM_COMMIT)); // initialize example
+		//get<3>(listOfAllocations[0]) = MEM_RESET; // change example
+		int j = 1;
+	    for (LOCALLOC::const_iterator i = listOfAllocations.begin(); i != listOfAllocations.end(); i++)
+	    {
+	    	cout << "Number " << j << "\n";
+	        cout << "Address (LPVOID):\t\t" << get<0>(*i) << "\n";
+	        cout << "Size of memory (SIZE_T):\t" << get<1>(*i) << "\n";
+	        cout << "Allocation type (DWORD):\t" << hex << "0x" << get<2>(*i) << dec << "\n";
+	        cout << "Memory potection type (DWORD):\t" << hex << "0x" << get<3>(*i) << dec << "\n";
+	        j = j + 1;
+	    }
+	}
+	else
+	{
+		cout << "Sorry, your HAVEN'T any region of pages in VAS! Allocate something first (choose from the main menu)!\n\n";
+	}
+}
+
+// ---------- 5 -- LIST OF ALLOCATIONS FREE ----------
+
+void LocalListOfAllocationsFree ()
+{
+    for (LOCALLOC::const_iterator i = listOfAllocations.begin(); i != listOfAllocations.end(); i++)
+    {
+        listOfAllocations.erase(i); // erasing vector
+    }
+}
+
+// ---------- 5 -- LOCAL VIRTUAL ALLOC ----------
 
 /*
 LPVOID VirtualAlloc(
@@ -744,7 +834,6 @@ void LocalVirtualAlloc ()
 	MEMORY_BASIC_INFORMATION localBuffer; // creating buffer for information write
 	SIZE_T localLength; // creating size variable (for what?)
 	SIZE_T localMemorySize = 4096;
-	char localInput = '-';
 	char localHelp = '-';
 	string localChooseAllocation = "0";
 	string localChooseProtect = "0";
@@ -756,22 +845,46 @@ void LocalVirtualAlloc ()
 	// LPVOID -- pointer
 	// LPCVOID -- pointer to constant
 
+	localHelp = '-';
+
+	// requesting memory size request
+	while (localHelp != 'y' && localHelp != 'n')
+	{
+		cout << "Do you want input memory size request in BYTES or not? It's 4096 bytes by default. [y/n]\n";
+
+		cin >> localHelp;
+	}
+
+	// setting memory size request
+	if (localHelp == 'y')
+	{
+		do
+		{
+			cout << "Please, input memory size request (in bytes): ";
+			cin >> localMemorySize;
+			//cout << localMemorySize << "[memeory size request check]";
+		}
+		while (localMemorySize < 0);
+	}
+
+	localHelp = '-';
+
 	// requesting adress input type
-	while (localInput != 'y' && localInput != 'n')
+	while (localHelp != 'y' && localHelp != 'n')
 	{
 		cout << "Do you want input adress or not (automatically)? [y/n]\n";
 
-		cin >> localInput;
+		cin >> localHelp;
 	}
 
 	// setting adress input type
-	if (localInput == 'y')
+	if (localHelp == 'y')
 	{
 		do
 		{
 			cout << "Please, input virtual adress space (in hex, 0x<hex number>): ";
 			cin >> hex >> locallpAddress >> dec;
-			cout << locallpAddress << "[adress check]";
+			//cout << locallpAddress << "[adress check]";
 		}
 		while (locallpAddress < (LPVOID)0x00000000 || locallpAddress > (LPVOID)0xffffffff);
 	}
@@ -779,6 +892,8 @@ void LocalVirtualAlloc ()
 	{
 		locallpAddress = NULL;
 	}
+
+	localHelp = '-';
 
 	// requesting help pages
 	while (localHelp != 'y' && localHelp != 'n')
@@ -1134,135 +1249,1050 @@ void LocalVirtualAlloc ()
 
 	LPVOID localVirtualAlloc = VirtualAlloc (locallpAddress, localMemorySize, localflAllocationType, localflProtect);
 
-	cout << "Your adress space is from (including) " localVirtualAlloc << " to (including) " << localVirtualAlloc + localMemorySize - 1;
-
-	cout << "bool:\t\t" << sizeof(bool) << " bytes\n";
-	cout << "char:\t\t" << sizeof(char) << " bytes\n";
-	cout << "wchar_t:\t" << sizeof(wchar_t) << " bytes\n";
-	cout << "char16_t:\t" << sizeof(char16_t) << " bytes\n";
-	cout << "char32_t:\t" << sizeof(char32_t) << " bytes\n"; 
-	cout << "short:\t\t" << sizeof(short) << " bytes\n";
-	cout << "int:\t\t" << sizeof(int) << " bytes\n";
-	cout << "long:\t\t" << sizeof(long) << " bytes\n";
-	cout << "long long:\t" << sizeof(long long) << " bytes\n";
-	cout << "float:\t\t" << sizeof(float) << " bytes\n";
-	cout << "double:\t\t" << sizeof(double) << " bytes\n";
-	cout << "long double:\t" << sizeof(long double) << " bytes\n";
-
-	cout << "Please, choose the starting adress: ";
-	cout << "Please, choose the input type: ";
-
-	cout << "Please, choose the starting adress: ";
-	cout << "Please, choose the output type";
-
-	if (??? < localVirtualAlloc)
-	{
-		cout << "Adress is out (is less) of possible allocated range, please, try again!";
-	}
-	else if (sizeof(bool) + ??? - 1 > localVirtualAlloc + localMemorySize - 1)
-	{
-		cout << "Address is out (is more) of possible allocated range, please, try again!";
-	}
-
 	if (localVirtualAlloc != NULL)
 	{
 		cout << "Allocation was successfull\n" << localVirtualAlloc << "\n";
-		cout << sizeof (short) << " " << sizeof (char) << " end\n";
-		//short* a = (short*) localVirtualAlloc + localMemorySize;
-		char* b = (char*) localVirtualAlloc + localMemorySize - 1;
 
-		cout << " " << *b << "\n";
-
-		cout << " char " << *b;
-		if (VirtualFree (localVirtualAlloc, 0, MEM_RELEASE))
+		// putting my values
+		localHelp = '-';
+		// requesting data change
+		while (localHelp != 'y' && localHelp != 'n')
 		{
-			cout << "Free was successfull\n";
+			cout << "Do you want to change some data in region of pages in VAS? [y/n]\n";
+
+			cin >> localHelp;
 		}
-		else
+		// data change
+		if (localHelp == 'y')
 		{
-			cout << "Free was NOT successfull. The last error code: " << GetLastError() << "\n";
+			LocalDataChangeCore (localVirtualAlloc, localMemorySize);
+		}
+
+		// freeing memory
+		localHelp = '-';
+		// requesting freeing memory
+		while (localHelp != 'y' && localHelp != 'n')
+		{
+			cout << "Do you want to free momory in VAS? [y/n]\n";
+
+			cin >> localHelp;
+		}
+		// freeing memory
+		if (localHelp == 'y') // if free -- then freeing and checking it
+		{
+			LocalVirtualFreeCore(localVirtualAlloc, localMemorySize);
+			/*if (VirtualFree (localVirtualAlloc, 0, MEM_RELEASE))
+			{
+				cout << "Free was successfull\n";
+			}
+			else
+			{
+				cout << "Free was NOT successfull. The last error code: " << GetLastError() << "\n";
+			}*/
+		}
+		else // if no -- put in in the list, i mean vector
+		{
+			listOfAllocations.push_back(tuple<LPVOID, SIZE_T, DWORD, DWORD>(localVirtualAlloc, localMemorySize, localflAllocationType, localflProtect));
 		}
 	}
 	else
 	{
 		cout << "Allocation was NOT successfull. The last error code: " << GetLastError() << "\n";
 	}
+}
 
-	// Physical memory refers to the actual RAM of the system
-	/*if (localVirtualQuery != 0)
+// ---------- 6 -- LOCAL DATA CHANGE CORE ----------
+
+void LocalDataChangeCore (LPVOID localVirtualAlloc, SIZE_T localMemorySize)
+{
+	cout << "Your adress space is from (including) " << localVirtualAlloc << " to (including) " << localVirtualAlloc + localMemorySize - 1 << "\n";
+	
+	char localRepeatMain = 'y'; // repeating all the checking
+	while (localRepeatMain == 'y')
 	{
-		cout << "Physical memory (RAM) information:\n"; // information output
+		bool localRepeat = true; // repeating input
+		int localStartingType = 1; // type choose for input
+		int localEndingType = 1; // type choose for output
+		SIZE_T localStartingSize = 0; // memory size for output
+		SIZE_T localEndingSize = 0; // memory size for output
+		LPVOID localStartingAddress = localVirtualAlloc; // starting address for input
+		LPVOID localEndingAddress = localVirtualAlloc; // starting address for output
 
-		// PVOID BaseAddress output
+		// all possible types of types initializing
 
-		cout << "    Pointer to the base address of the region of pages:  " << localBuffer.BaseAddress << "\n";
+		// input
+		bool* localBool;
+		char* localChar;
+		wchar_t* localWCharT;
+		char16_t* localChar16T;
+		char32_t* localChar32T;
+		short* localShort;
+		int* localInt;
+		long* localLong;
+		long long* localLongLong;
+		float* localFloat;
+		double* localDouble;
+		long double* localLongDouble;
 
-		// PVOID AllocationBase output
+		// output
+		bool* localBoolOut;
+		char* localCharOut;
+		wchar_t* localWCharTOut;
+		char16_t* localChar16TOut;
+		char32_t* localChar32TOut;
+		short* localShortOut;
+		int* localIntOut;
+		long* localLongOut;
+		long long* localLongLongOut;
+		float* localFloatOut;
+		double* localDoubleOut;
+		long double* localLongDoubleOut;
 
-		cout << "    Pointer -- // -- allocated by the VirtualAlloc:      " << localBuffer.AllocationBase << "\n";
+		// all possible types of types choosing
 
-		// DWORD AllocationProtect output
+		cout << "1 -- bool:\t\t" << sizeof(bool) << " bytes\n";
+		cout << "2 -- char:\t\t" << sizeof(char) << " bytes\n";
+		cout << "3 -- wchar_t:\t\t" << sizeof(wchar_t) << " bytes\n";
+		cout << "4 -- char16_t:\t\t" << sizeof(char16_t) << " bytes\n";
+		cout << "5 -- char32_t:\t\t" << sizeof(char32_t) << " bytes\n"; 
+		cout << "6 -- short:\t\t" << sizeof(short) << " bytes\n";
+		cout << "7 -- int:\t\t" << sizeof(int) << " bytes\n";
+		cout << "8 -- long:\t\t" << sizeof(long) << " bytes\n";
+		cout << "9 -- long long:\t\t" << sizeof(long long) << " bytes\n";
+		cout << "10 -- float:\t\t" << sizeof(float) << " bytes\n";
+		cout << "11 -- double:\t\t" << sizeof(double) << " bytes\n";
+		cout << "12 -- long double:\t" << sizeof(long double) << " bytes\n\n";
 
-		cout << "    Memory protection option (for initially allocation): " << localBuffer.AllocationProtect << "\n";
-
-		// WORD PartitionId output
-
-		//cout << "    Partition ID (?): " << localBuffer.PartitionId << "\n"; // compiler can't recognize that
-
-		// SIZE_T RegionSize output
-
-		cout << "    Region's size from base address, pages identical attributes (in bytes): " << localBuffer.RegionSize << "\n";
-
-		// DWORD State output
-
-		if (localBuffer.State == MEM_COMMIT) // number 0x00001000
+		localRepeat = true; // if i will run this code again (UPT: THIS IS BUG, FIXED)
+		while (localRepeat == true)
 		{
-			cout << "    The state of the pages in the region:                0x" << hex << localBuffer.State << dec << " -- " << "Committed pages for which mem has been allocated\n";
+			// input and output adress and type choosing
+
+			cout << "Please, choose the starting adress (0x<hex number>): ";
+			cin >> hex >> localStartingAddress >> dec;
+			cout << "Please, choose the input type: ";
+			cin >> localStartingType;
+
+			cout << "Please, choose the starting adress: ";
+			cin >> hex >> localEndingAddress >> dec;
+			cout << "Please, choose the output type: ";
+			cin >> localEndingType;
+
+			switch (localStartingType) // starting input address size qualification
+			{
+				case 1:
+					localStartingSize = sizeof(bool);
+					break;
+				case 2:
+					localStartingSize = sizeof(char);
+					break;
+				case 3:
+					localStartingSize = sizeof(wchar_t);
+					break;
+				case 4:
+					localStartingSize = sizeof(char16_t);
+					break;
+				case 5:
+					localStartingSize = sizeof(char32_t);
+					break;
+				case 6:
+					localStartingSize = sizeof(short);
+					break;
+				case 7:
+					localStartingSize = sizeof(int);
+					break;
+				case 8:
+					localStartingSize = sizeof(long);
+					break;
+				case 9:
+					localStartingSize = sizeof(long long);
+					break;
+				case 10:
+					localStartingSize = sizeof(float);
+					break;
+				case 11:
+					localStartingSize = sizeof(double);
+					break;
+				case 12:
+					localStartingSize = sizeof(long double);
+					break;
+				default:
+					localStartingSize = sizeof(bool);
+					break;
+			}
+
+			switch (localEndingType) // starting output size address qualification
+			{
+				case 1:
+					localEndingSize = sizeof(bool);
+					break;
+				case 2:
+					localEndingSize = sizeof(char);
+					break;
+				case 3:
+					localEndingSize = sizeof(wchar_t);
+					break;
+				case 4:
+					localEndingSize = sizeof(char16_t);
+					break;
+				case 5:
+					localEndingSize = sizeof(char32_t);
+					break;
+				case 6:
+					localEndingSize = sizeof(short);
+					break;
+				case 7:
+					localEndingSize = sizeof(int);
+					break;
+				case 8:
+					localEndingSize = sizeof(long);
+					break;
+				case 9:
+					localEndingSize = sizeof(long long);
+					break;
+				case 10:
+					localEndingSize = sizeof(float);
+					break;
+				case 11:
+					localEndingSize = sizeof(double);
+					break;
+				case 12:
+					localEndingSize = sizeof(long double);
+					break;
+				default:
+					localEndingSize = sizeof(bool);
+					break;
+			}
+
+			if (localStartingAddress < localVirtualAlloc || localEndingAddress < localVirtualAlloc)
+			{
+				cout << "Adress is out (is less) of possible allocated range, please, try again!\n";
+			}
+			else if (localStartingSize + localStartingAddress - 1 > localVirtualAlloc + localMemorySize - 1
+				|| localEndingSize + localEndingAddress - 1 > localVirtualAlloc + localMemorySize - 1)
+			{
+				cout << "Address with/without memory is out (is more) of possible allocated range, please, try again!\n";
+			}
+			else
+			{
+				localRepeat = false; // if there is no errors, the program will run
+			}
 		}
-		else if (localBuffer.State == MEM_RESERVE) // number 0x00002000
+
+		// checking all values AND SETTING ADDRESSES
+
+		cout << "Checking current values before something:\n";
+		cout << "Input";
+
+		switch (localStartingType)
 		{
-			cout << "    The state of the pages in the region:                0x" << hex << localBuffer.State << dec << " -- " << "Free pages not for process, but for allocation\n";
-		}
-		else if (localBuffer.State == MEM_RESET) // number 0x00080000
-		{
-			cout << "    The state of the pages in the region:                0x" << hex << localBuffer.State << dec << " -- " << "Reserved pages without allocation\n";
-		}
-		else if (localBuffer.State == MEM_RESET_UNDO) // number 0x1000000
-		{
-			cout << "    The state of the pages in the region:                0x" << hex << localBuffer.State << dec << " -- " << "Reserved pages without allocation\n";
-		}
-		else // another number
-		{
-			cout << "    The state of the pages in the region:                0x" << hex << localBuffer.State << dec << " -- " << "THIS NUMBER DOESN'T MEAN ANYTHING\n";
+			case 1:
+				localBool = (bool*)localStartingAddress;
+				cout << " (bool): ";
+				cout << *localBool;
+				break;
+			case 2:
+				localChar = (char*)localStartingAddress;
+				cout << " (char): ";
+				cout << *localChar;
+				break;
+			case 3:
+				localWCharT = (wchar_t*)localStartingAddress;
+				cout << " (wchar_t): ";
+				cout << *localWCharT;
+				break;
+			case 4:
+				localChar16T = (char16_t*)localStartingAddress;
+				cout << " (char16_t): ";
+				cout << *localChar16T;
+				break;
+			case 5:
+				localChar32T = (char32_t*)localStartingAddress;
+				cout << " (char32_t): ";
+				cout << *localChar32T;
+				break;
+			case 6:
+				localShort = (short*)localStartingAddress;
+				cout << " (short): ";
+				cout << *localShort;
+				break;
+			case 7:
+				localInt = (int*)localStartingAddress;
+				cout << " (int): ";
+				cout << *localInt;
+				break;
+			case 8:
+				localLong = (long*)localStartingAddress;
+				cout << " (long): ";
+				cout << *localLong;
+				break;
+			case 9:
+				localLongLong = (long long*)localStartingAddress;
+				cout << " (long long): ";
+				cout << *localLongLong;
+				break;
+			case 10:
+				localFloat = (float*)localStartingAddress;
+				cout << " (float): ";
+				cout << *localFloat;
+				break;
+			case 11:
+				localDouble = (double*)localStartingAddress;
+				cout << " (double): ";
+				cout << *localDouble;
+				break;
+			case 12:
+				localLongDouble = (long double*)localStartingAddress;
+				cout << " (long double): ";
+				cout << *localLongDouble;
+				break;
+			default:
+				localBool = (bool*)localStartingAddress;
+				cout << " (bool): ";
+				cout << *localBool;
+				break;
 		}
 
-		// DWORD Protect output
+		cout << "\n";
+		cout << "Output";
 
-		cout << "    Access protection of the pages in the region:        " << localBuffer.Protect << "\n";
+		switch (localEndingType)
+		{
+			case 1:
+				localBoolOut = (bool*)localEndingAddress;
+				cout << " (bool): ";
+				cout << *localBoolOut;
+				break;
+			case 2:
+				localCharOut = (char*)localEndingAddress;
+				cout << " (char): ";
+				cout << *localCharOut;
+				break;
+			case 3:
+				localWCharTOut = (wchar_t*)localEndingAddress;
+				cout << " (wchar_t): ";
+				cout << *localWCharTOut;
+				break;
+			case 4:
+				localChar16TOut = (char16_t*)localEndingAddress;
+				cout << " (char16_t): ";
+				cout << *localChar16TOut;
+				break;
+			case 5:
+				localChar32TOut = (char32_t*)localEndingAddress;
+				cout << " (char32_t): ";
+				cout << *localChar32TOut;
+				break;
+			case 6:
+				localShortOut = (short*)localEndingAddress;
+				cout << " (short): ";
+				cout << *localShortOut;
+				break;
+			case 7:
+				localIntOut = (int*)localEndingAddress;
+				cout << " (int): ";
+				cout << *localIntOut;
+				break;
+			case 8:
+				localLongOut = (long*)localEndingAddress;
+				cout << " (long): ";
+				cout << *localLongOut;
+				break;
+			case 9:
+				localLongLongOut = (long long*)localEndingAddress;
+				cout << " (long long): ";
+				cout << *localLongLongOut;
+				break;
+			case 10:
+				localFloatOut = (float*)localEndingAddress;
+				cout << " (float): ";
+				cout << *localFloatOut;
+				break;
+			case 11:
+				localDoubleOut = (double*)localEndingAddress;
+				cout << " (double): ";
+				cout << *localDoubleOut;
+				break;
+			case 12:
+				localLongDoubleOut = (long double*)localEndingAddress;
+				cout << " (long double): ";
+				cout << *localLongDoubleOut;
+				break;
+			default:
+				localBoolOut = (bool*)localEndingAddress;
+				cout << " (bool): ";
+				cout << *localBoolOut;
+				break;
+		}
 
-		// DWORD Type output
+		cout << "\n";
 
-		if (localBuffer.Type == MEM_IMAGE) // number 0x1000000
+		// setting right values for the types and size of the types
+
+		cout << "Please, input your value into the variable of choosen type";
+
+		switch (localStartingType)
 		{
-			cout << "    The type of pages in the region:                     0x" << hex << localBuffer.Type << dec << " -- " << "Memory pages -> image section\n";
+			case 1:
+				cout << " (bool): ";
+				*localBool = BoolSafetyInput();
+				break;
+			case 2:
+				cout << " (char): ";
+				cin >> *localChar;
+				break;
+			case 3:
+				cout << " (wchar_t): ";
+				//cin >> *localWCharT;
+				break;
+			case 4:
+				cout << " (char16_t): ";
+				//cin >> *localChar16T;
+				break;
+			case 5:
+				cout << " (char32_t): ";
+				//cin >> *localChar32T;
+				break;
+			case 6:
+				cout << " (short): ";
+				cin >> *localShort;
+				break;
+			case 7:
+				cout << " (int): ";
+				cin >> *localInt;
+				break;
+			case 8:
+				cout << " (long): ";
+				cin >> *localLong;
+				break;
+			case 9:
+				cout << " (long long): ";
+				cin >> *localLongLong;
+				break;
+			case 10:
+				cout << " (float): ";
+				cin >> *localFloat;
+				break;
+			case 11:
+				cout << " (double): ";
+				cin >> *localDouble;
+				break;
+			case 12:
+				cout << " (long double): ";
+				cin >> *localLongDouble;
+				break;
+			default:
+				cout << " (bool): ";
+				*localBool = BoolSafetyInput();
+				break;
 		}
-		else if (localBuffer.Type == MEM_MAPPED) // number 0x40000
+
+		// getting values from chosed types
+
+		cout << "Output the value from variable of choosen type";
+
+		switch (localEndingType)
 		{
-			cout << "    The type of pages in the region:                     0x" << hex << localBuffer.Type << dec << " -- " << "Memory pages -> section\n";
+			case 1:
+				cout << " (bool): ";
+				cout << *localBoolOut;
+				break;
+			case 2:
+				cout << " (char): ";
+				cout << *localCharOut;
+				break;
+			case 3:
+				cout << " (wchar_t): ";
+				cout << *localWCharTOut;
+				break;
+			case 4:
+				cout << " (char16_t): ";
+				cout << *localChar16TOut;
+				break;
+			case 5:
+				cout << " (char32_t): ";
+				cout << *localChar32TOut;
+				break;
+			case 6:
+				cout << " (short): ";
+				cout << *localShortOut;
+				break;
+			case 7:
+				cout << " (int): ";
+				cout << *localIntOut;
+				break;
+			case 8:
+				cout << " (long): ";
+				cout << *localLongOut;
+				break;
+			case 9:
+				cout << " (long long): ";
+				cout << *localLongLongOut;
+				break;
+			case 10:
+				cout << " (float): ";
+				cout << *localFloatOut;
+				break;
+			case 11:
+				cout << " (double): ";
+				cout << *localDoubleOut;
+				break;
+			case 12:
+				cout << " (long double): ";
+				cout << *localLongDoubleOut;
+				break;
+			default:
+				cout << " (bool): ";
+				cout << *localBoolOut;
+				break;
 		}
-		else if (localBuffer.Type == MEM_PRIVATE) // number 0x20000
+
+		cout << "\n";
+
+		localRepeat = false;
+
+		cout << "Try again? [y -- yes (your values you put will remain) / n -- no]\n";
+		cin >> localRepeatMain;
+	}
+}
+
+// ---------- 6 -- LOCAL DATA CHANGE INDEPENDENT ----------
+
+void LocalDataChangeIndependent ()
+{
+	bool vp = false; // at the beginning function isn't completed yet
+	int localChoose = 1; // default
+
+	LPVOID locallpAddress = (LPVOID)0x11376077;
+	SIZE_T localdwSize = 4096;
+	DWORD localOldAllocationType = 0;
+	DWORD localOldProtect = 0; // is from list
+	
+	PDWORD locallpflOldProtect = NULL; // old protection pointer
+	DWORD localflNewProtect = 0; // new protection
+	
+	char localHelp = '-';
+
+	if (listOfAllocations.size() > 0) // if our list has something check
+	{
+		LocalListOfAllocations (); // output all possible region of pages in VAS
+		do
 		{
-			cout << "    The type of pages in the region:                     0x" << hex << localBuffer.Type << dec << " -- " << "Memory pages -> private\n";
+			cout << "Please, choose the number of the region of pages in VAS: ";
+			cin >> localChoose;
 		}
-		else // another number
+		while (localChoose < 1 || localChoose > listOfAllocations.size());
+		locallpAddress = get<0>(listOfAllocations[localChoose - 1]);
+		localdwSize = get<1>(listOfAllocations[localChoose - 1]);
+		localOldAllocationType = get<2>(listOfAllocations[localChoose - 1]);
+		localOldProtect = get<3>(listOfAllocations[localChoose - 1]);
+		cout << "THE CHOOSEN region of pages in VAS with is " << locallpAddress << " with size " << localdwSize
+		<< " bytes\nwith allocation type 0x" << hex << localOldAllocationType << " and memory constant 0x" << localOldProtect << dec << "\n"
+		<< "Commit changes? [y/n]\n";
+		cin >> localHelp;
+		LocalDataChangeCore(locallpAddress, localdwSize);
+	}
+	else
+	{
+		LocalListOfAllocations ();
+	}
+}
+
+// ---------- 7 -- LOCAL VIRTUAL PROTECT ----------
+
+/*
+BOOL VirtualProtect(
+  [in]  LPVOID lpAddress,
+  [in]  SIZE_T dwSize,
+  [in]  DWORD  flNewProtect,
+  [out] PDWORD lpflOldProtect
+);
+*/
+
+void LocalVirtualProtect ()
+{
+	bool vp = false; // at the beginning function isn't completed yet
+	int localChoose = 1; // default
+
+	LPVOID locallpAddress = (LPVOID)0x11376077;
+	SIZE_T localdwSize = 4096;
+	DWORD localOldAllocationType = 0;
+	DWORD localOldProtect = 0; // is from list
+	
+	DWORD locallpflOldProtect; // old protection pointer (actually, it must be PDWODR)
+	DWORD localflNewProtect = 0; // new protection
+	
+	char localHelp = '-';
+	string localChooseAllocation = "0";
+	string localChooseProtect = "0";
+
+	if (listOfAllocations.size() > 0) // if our list has something check
+	{
+		LocalListOfAllocations (); // output all possible region of pages in VAS
+		do
 		{
-			cout << "    The type of pages in the region:                     0x" << hex << localBuffer.Type << dec << " -- " << "THIS NUMBER DOESN'T MEAN ANYTHING\n";
+			cout << "Please, choose the number of the region of pages in VAS: ";
+			cin >> localChoose;
+		}
+		while (localChoose < 1 || localChoose > listOfAllocations.size());
+		locallpAddress = get<0>(listOfAllocations[localChoose - 1]);
+		localdwSize = get<1>(listOfAllocations[localChoose - 1]);
+		localOldAllocationType = get<2>(listOfAllocations[localChoose - 1]);
+		localOldProtect = get<3>(listOfAllocations[localChoose - 1]);
+		cout << "THE CHOOSEN region of pages in VAS with is " << locallpAddress << " with size " << localdwSize
+		<< " bytes\nwith allocation type 0x" << hex << localOldAllocationType << " and memory constant 0x" << localOldProtect << dec << "\n"
+		<< "Commit changes? [y/n]\n";
+		cin >> localHelp;
+
+		// choosing and setting the NEW memory protect constant
+		while (localflNewProtect == 0)
+		{
+			cout << "Please, choose the memory protect constant (you CAN CHOOSE MANY -- JUST SPLIT NUMBERS BY SPACE):\n"
+			<< "1 -- PAGE_EXECUTE (0x10)\n"
+			<< "2 -- PAGE_EXECUTE_READ (0x20)\n"
+			<< "3 -- PAGE_EXECUTE_READWRITE (0x40)\n"
+			<< "4 -- PAGE_EXECUTE_WRITECOPY (0x80)\n"
+			<< "5 -- PAGE_NOACCESS (0x01)\n"
+			<< "6 -- PAGE_READONLY (0x02)\n"
+			<< "7 -- PAGE_READWRITE (0x04)\n"
+			<< "8 -- PAGE_WRITECOPY (0x08)\n"
+			//<< "9 -- PAGE_TARGETS_INVALID (0x40000000)\n" // compiler declaration error
+			//<< "10 -- PAGE_TARGETS_NO_UPDATE (0x40000000)\n" // compiler declaration error
+			<< "11 -- PAGE_GUARD (0x100)\n"
+			<< "12 -- PAGE_NOCACHE (0x200)\n"
+			<< "13 -- PAGE_WRITECOMBINE (0x400)\n";
+
+			fflush(stdin);
+			std::getline(std::cin, localChooseProtect);
+
+			// spit the string
+			std::string s = string(localChooseProtect);
+			std::string delimiter = " ";
+
+			int i = 0;
+			size_t pos = 0;
+			std::string token;
+			std::vector<string> v;
+			std::vector<int> vect{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13}; // all possible switch case numbers (DON'T FORGET WRITE THEM FROM MENU UP THERE)
+			while ((pos = s.find(delimiter)) != std::string::npos)
+			{
+				int tmpNumber = 0;
+			    token = s.substr(0, pos);
+			    v.push_back(token);
+			    tmpNumber = std::stoi(token);
+			    if (std::find(vect.begin(), vect.end(), tmpNumber) != vect.end())
+			    {
+					switch (tmpNumber) // choosing number
+					{
+						case 1:
+							localflNewProtect = localflNewProtect | PAGE_EXECUTE;
+							break;
+						case 2:
+							localflNewProtect = localflNewProtect | PAGE_EXECUTE_READ;
+							break;
+						case 3:
+							localflNewProtect = localflNewProtect | PAGE_EXECUTE_READWRITE;
+							break;
+						case 4:
+							localflNewProtect = localflNewProtect | PAGE_EXECUTE_WRITECOPY;
+							break;
+						case 5:
+							localflNewProtect = localflNewProtect | PAGE_NOACCESS;
+							break;
+						case 6:
+							localflNewProtect = localflNewProtect | PAGE_READONLY;
+							break;
+						case 7:
+							localflNewProtect = localflNewProtect | PAGE_READWRITE;
+							break;
+						case 8:
+							localflNewProtect = localflNewProtect | PAGE_WRITECOPY;
+							break;
+						case 9:
+							//localflNewProtect = localflNewProtect | PAGE_TARGETS_INVALID; // compiler declaration error
+							break;
+						case 10:
+							//localflNewProtect = localflNewProtect | PAGE_TARGETS_NO_UPDATE; // compiler declaration error
+							break;
+						case 11:
+							localflNewProtect = localflNewProtect | PAGE_GUARD;
+							break;
+						case 12:
+							localflNewProtect = localflNewProtect | PAGE_NOCACHE;
+							break;
+						case 13:
+							localflNewProtect = localflNewProtect | PAGE_WRITECOMBINE;
+							break;
+						default:
+							localflNewProtect = localflNewProtect | PAGE_READWRITE;
+							break;
+					}
+			    	vect.erase(std::remove(vect.begin(), vect.end(), tmpNumber), vect.end());
+			    }
+			    //std::cout << token << std::endl;
+			    s.erase(0, pos + delimiter.length());
+			}
+
+			int newTMPNumber = std::stoi(s);
+			if (std::find(vect.begin(), vect.end(), newTMPNumber) != vect.end())
+			{
+				switch (newTMPNumber) // choosing number
+				{
+					case 1:
+						localflNewProtect = localflNewProtect | PAGE_EXECUTE;
+						break;
+					case 2:
+						localflNewProtect = localflNewProtect | PAGE_EXECUTE_READ;
+						break;
+					case 3:
+						localflNewProtect = localflNewProtect | PAGE_EXECUTE_READWRITE;
+						break;
+					case 4:
+						localflNewProtect = localflNewProtect | PAGE_EXECUTE_WRITECOPY;
+						break;
+					case 5:
+						localflNewProtect = localflNewProtect | PAGE_NOACCESS;
+						break;
+					case 6:
+						localflNewProtect = localflNewProtect | PAGE_READONLY;
+						break;
+					case 7:
+						localflNewProtect = localflNewProtect | PAGE_READWRITE;
+						break;
+					case 8:
+						localflNewProtect = localflNewProtect | PAGE_WRITECOPY;
+						break;
+					case 9:
+						//localflNewProtect = localflNewProtect | PAGE_TARGETS_INVALID; // compiler declaration error
+						break;
+					case 10:
+						//localflNewProtect = localflNewProtect | PAGE_TARGETS_NO_UPDATE; // compiler declaration error
+						break;
+					case 11:
+						localflNewProtect = localflNewProtect | PAGE_GUARD;
+						break;
+					case 12:
+						localflNewProtect = localflNewProtect | PAGE_NOCACHE;
+						break;
+					case 13:
+						localflNewProtect = localflNewProtect | PAGE_WRITECOMBINE;
+						break;
+					default:
+						localflNewProtect = localflNewProtect | PAGE_READWRITE;
+						break;
+				}
+			    vect.erase(std::remove(vect.begin(), vect.end(), newTMPNumber), vect.end());
+			}
+
+			//std::cout << s << std::endl;
+			// end split of the string
+
+			if (localflNewProtect == 0)
+			{
+				cout << "Try again!\n";
+			}
+		}
+
+		// making function
+		vp = VirtualProtect(locallpAddress, localdwSize, localflNewProtect, &locallpflOldProtect);
+
+		// the result checking
+		if (vp == true)
+		{
+			cout << "The memory protection constant in " << locallpAddress << " address with size " << localdwSize
+			<< " bytes\nHAS BEEN successfully changed from 0x" << hex << locallpflOldProtect << " to 0x" << localflNewProtect << dec << "\n";
+		}
+		else
+		{
+			cout << "SORRY! The memory protection constant in " << locallpAddress << " address with size " << localdwSize
+			<< " bytes\nHASN'T BEEN successfully changed from 0x" << hex << locallpflOldProtect << " to 0x" << localflNewProtect << dec
+			<< "\n" << "The last error code is " << GetLastError() << "\n";
 		}
 	}
 	else
 	{
-		cout << "Something went wrong! Last error code: " << GetLastError() << "\n";
-	}*/
+		LocalListOfAllocations ();
+	}
+}
+
+// ---------- 8 -- LOCAL VIRTUAL FREE CORE ----------
+
+void LocalVirtualFreeCore (LPVOID locallpAddress, SIZE_T localdwSize)
+{
+	bool vf = false; // at the beginning function isn't completed yet
+	DWORD localFree = 0;
+	
+	char localRepeat = 'n'; // for start
+	char localHelp = '-';
+	string localChooseAllocation = "0";
+	string localChooseProtect = "0";
+	// choosing and setting the NEW memory protect constant
+	while (localFree == 0)
+	{
+		cout << "Please, choose the memory free option (you CAN CHOOSE MANY -- JUST SPLIT NUMBERS BY SPACE):\n"
+		<< "1 -- MEM_DECOMMIT (0x00004000)\n"
+		<< "2 -- MEM_RELEASE -- THE MAIN OPTION (0x00008000)\n";
+		//<< "3 -- MEM_COALESCE_PLACEHOLDERS (0x00000001)\n"
+		//<< "4 -- MEM_PRESERVE_PLACEHOLDER (0x00000002)\n";
+
+		fflush(stdin);
+		std::getline(std::cin, localChooseProtect);
+
+		// spit the string
+		std::string s = string(localChooseProtect);
+		std::string delimiter = " ";
+
+		int i = 0;
+		size_t pos = 0;
+		std::string token;
+		std::vector<string> v;
+		std::vector<int> vect{1, 2, 3, 4}; // all possible switch case numbers (DON'T FORGET WRITE THEM FROM MENU UP THERE)
+		while ((pos = s.find(delimiter)) != std::string::npos)
+		{
+			int tmpNumber = 0;
+		    token = s.substr(0, pos);
+		    v.push_back(token);
+		    tmpNumber = std::stoi(token);
+		    if (std::find(vect.begin(), vect.end(), tmpNumber) != vect.end())
+		    {
+				switch (tmpNumber) // choosing number
+				{
+					case 1:
+						localFree = localFree | MEM_DECOMMIT;
+						break;
+					case 2:
+						localFree = localFree | MEM_RELEASE;
+						break;
+					case 3:
+						//localFree = localFree | MEM_COALESCE_PLACEHOLDERS; // compiler erroe
+						break;
+					case 4:
+						//localFree = localFree | MEM_PRESERVE_PLACEHOLDER; // compiler error
+						break;
+					default:
+						localFree = localFree | MEM_RELEASE;
+						break;
+				}
+		    	vect.erase(std::remove(vect.begin(), vect.end(), tmpNumber), vect.end());
+		    }
+		    //std::cout << token << std::endl;
+		    s.erase(0, pos + delimiter.length());
+		}
+
+		int newTMPNumber = std::stoi(s);
+		if (std::find(vect.begin(), vect.end(), newTMPNumber) != vect.end())
+		{
+			switch (newTMPNumber) // choosing number
+			{
+				case 1:
+					localFree = localFree | MEM_DECOMMIT;
+					break;
+				case 2:
+					localFree = localFree | MEM_RELEASE;
+					break;
+				case 3:
+					//localFree = localFree | MEM_COALESCE_PLACEHOLDERS; // compiler error
+					break;
+				case 4:
+					//localFree = localFree | MEM_PRESERVE_PLACEHOLDER; // compiler error
+					break;
+				default:
+					localFree = localFree | MEM_RELEASE;
+					break;
+			}
+		    vect.erase(std::remove(vect.begin(), vect.end(), newTMPNumber), vect.end());
+		}
+
+		//std::cout << s << std::endl;
+		// end split of the string
+
+		if (localFree == 0)
+		{
+			cout << "Try again!\n";
+		}
+	}
+
+	// making function
+	if ((localFree & MEM_RELEASE) != 0) // BUG DETECTED: ((<> & <>) != <>) works, but (<> & <> != <>) DOESN'T
+	{
+		localdwSize = 0;
+	}
+
+	vf = VirtualFree(locallpAddress, localdwSize, localFree);
+
+	// the result checking
+	if (vf == true)
+	{
+		cout << "The page in " << locallpAddress << " address with size " << localdwSize
+		<< " bytes\nHAS BEEN successfully freed with free type 0x" << hex << localFree << dec << "\n";
+	}
+	else
+	{
+		cout << "SORRY! The page in " << locallpAddress << " address with size " << localdwSize
+		<< " bytes\nHASN'T BEEN successfully freed with free type 0x" << hex << localFree << dec
+		<< "\n" << "The last error code is " << GetLastError() << "\n";
+	}
+}
+
+// ---------- 8 -- LOCAL VIRTUAL FREE INDEPENDENT ----------
+
+/*
+BOOL VirtualFree(
+  [in] LPVOID lpAddress,
+  [in] SIZE_T dwSize,
+  [in] DWORD  dwFreeType
+);
+*/
+
+void LocalVirtualFreeIndependent ()
+{
+	bool vf = false; // at the beginning function isn't completed yet
+	int localChoose = 1; // default
+
+	LPVOID locallpAddress = (LPVOID)0x11376077;
+	SIZE_T localdwSize = 4096;
+	DWORD localOldAllocationType = 0;
+	DWORD localOldProtect = 0; // is from list
+	
+	PDWORD locallpflOldProtect = NULL; // old protection pointer
+	DWORD localflNewProtect = 0; // new protection
+
+	DWORD localFree = 0;
+	
+	char localHelp = '-';
+	string localChooseAllocation = "0";
+	string localChooseProtect = "0";
+
+	if (listOfAllocations.size() > 0) // if our list has something check
+	{
+		LocalListOfAllocations (); // output all possible region of pages in VAS
+		do
+		{
+			cout << "Please, choose the number of the region of pages in VAS: ";
+			cin >> localChoose;
+		}
+		while (localChoose < 1 || localChoose > listOfAllocations.size());
+		locallpAddress = get<0>(listOfAllocations[localChoose - 1]);
+		localdwSize = get<1>(listOfAllocations[localChoose - 1]);
+		localOldAllocationType = get<2>(listOfAllocations[localChoose - 1]);
+		localOldProtect = get<3>(listOfAllocations[localChoose - 1]);
+		cout << "THE CHOOSEN region of pages in VAS with is " << locallpAddress << " with size " << localdwSize
+		<< " bytes\nwith allocation type 0x" << hex << localOldAllocationType << " and memory constant 0x" << localOldProtect << dec << "\n"
+		<< "Commit changes? [y/n]\n";
+		cin >> localHelp;
+
+		// choosing and setting the NEW memory protect constant
+		while (localFree == 0)
+		{
+			cout << "Please, choose the memory free option (you CAN CHOOSE MANY -- JUST SPLIT NUMBERS BY SPACE):\n"
+			<< "1 -- MEM_DECOMMIT (0x00004000)\n"
+			<< "2 -- MEM_RELEASE -- THE MAIN OPTION (0x00008000)\n";
+			//<< "3 -- MEM_COALESCE_PLACEHOLDERS (0x00000001)\n"
+			//<< "4 -- MEM_PRESERVE_PLACEHOLDER (0x00000002)\n";
+
+			fflush(stdin);
+			std::getline(std::cin, localChooseProtect);
+
+			// spit the string
+			std::string s = string(localChooseProtect);
+			std::string delimiter = " ";
+
+			int i = 0;
+			size_t pos = 0;
+			std::string token;
+			std::vector<string> v;
+			std::vector<int> vect{1, 2, 3, 4}; // all possible switch case numbers (DON'T FORGET WRITE THEM FROM MENU UP THERE)
+			while ((pos = s.find(delimiter)) != std::string::npos)
+			{
+				int tmpNumber = 0;
+			    token = s.substr(0, pos);
+			    v.push_back(token);
+			    tmpNumber = std::stoi(token);
+			    if (std::find(vect.begin(), vect.end(), tmpNumber) != vect.end())
+			    {
+					switch (tmpNumber) // choosing number
+					{
+						case 1:
+							localFree = localFree | MEM_DECOMMIT;
+							break;
+						case 2:
+							localFree = localFree | MEM_RELEASE;
+							break;
+						case 3:
+							//localFree = localFree | MEM_COALESCE_PLACEHOLDERS; // compiler error
+							break;
+						case 4:
+							//localFree = localFree | MEM_PRESERVE_PLACEHOLDER; // compiler error
+							break;
+						default:
+							localFree = localFree | MEM_RELEASE;
+							break;
+					}
+			    	vect.erase(std::remove(vect.begin(), vect.end(), tmpNumber), vect.end());
+			    }
+			    //std::cout << token << std::endl;
+			    s.erase(0, pos + delimiter.length());
+			}
+
+			int newTMPNumber = std::stoi(s);
+			if (std::find(vect.begin(), vect.end(), newTMPNumber) != vect.end())
+			{
+				switch (newTMPNumber) // choosing number
+				{
+					case 1:
+						localFree = localFree | MEM_DECOMMIT;
+						break;
+					case 2:
+						localFree = localFree | MEM_RELEASE;
+						break;
+					case 3:
+						//localFree = localFree | MEM_COALESCE_PLACEHOLDERS; // compiler error
+						break;
+					case 4:
+						//localFree = localFree | MEM_PRESERVE_PLACEHOLDER; // compiler error
+						break;
+					default:
+						localFree = localFree | MEM_RELEASE;
+						break;
+				}
+			    vect.erase(std::remove(vect.begin(), vect.end(), newTMPNumber), vect.end());
+			}
+
+			//std::cout << s << std::endl;
+			// end split of the string
+
+			if (localFree == 0)
+			{
+				cout << "Try again!\n";
+			}
+		}
+
+		// making function
+		if ((localFree & MEM_RELEASE) != 0) // BUG DETECTED: ((<> & <>) != <>) works, but (<> & <> != <>) DOESN'T
+		{
+			localdwSize = 0;
+		}
+
+		vf = VirtualFree(locallpAddress, localdwSize, localFree);
+
+		// the result checking
+		if (vf == true)
+		{
+			cout << "The page in " << locallpAddress << " address with size " << localdwSize
+			<< " bytes\nHAS BEEN successfully freed with free type 0x" << hex << localFree << dec << "\n";
+			listOfAllocations.erase(listOfAllocations.begin() + localChoose - 1); // erasing vector
+		}
+		else
+		{
+			cout << "SORRY! The page in " << locallpAddress << " address with size " << localdwSize
+			<< " bytes\nHASN'T BEEN successfully freed with free type 0x" << hex << localFree << dec
+			<< "\n" << "The last error code is " << GetLastError() << "\n";
+		}
+	}
+	else
+	{
+		LocalListOfAllocations ();
+	}
 }
 
 // ---------- 1 -- GET LOGICAL DRIVES ----------
