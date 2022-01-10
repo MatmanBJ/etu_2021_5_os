@@ -738,79 +738,454 @@ LPVOID VirtualAlloc(
 
 void LocalVirtualAlloc ()
 {
-	int localChooseAllocation = 0;
-	int localChooseProtect = 0;
-	DWORD localAdress = 0x11376077;
 	DWORD localflAllocationType = 0;
 	DWORD localflProtect = 0;
-	//DWORD localAdress = -1; // creating adress variable
+	//DWORD localAddress = -1; // creating adress variable
 	MEMORY_BASIC_INFORMATION localBuffer; // creating buffer for information write
 	SIZE_T localLength; // creating size variable (for what?)
 	SIZE_T localMemorySize = 4096;
-
-	do
-	{
-		cout << "Please, input virtual adress space (in hex, 0x<hex number>): ";
-		cin >> hex >> localAdress >> dec;
-	} while (localAdress < 0x00000000 || localAdress > 0xffffffff);
+	char localInput = '-';
+	char localHelp = '-';
+	string localChooseAllocation = "0";
+	string localChooseProtect = "0";
+	LPVOID locallpAddress = (LPVOID)0x11376077;
 
 	// The return value is the actual number of bytes returned in the information buffer.
 	// If the function fails, the return value is zero. To get extended error information, call GetLastError. Possible error values include ERROR_INVALID_PARAMETER.
-	LPVOID localVirtualAlloc = VirtualAlloc (NULL, localMemorySize, MEM_RESERVE, PAGE_READWRITE);
+	//LPVOID localVirtualAlloc = VirtualAlloc (NULL, localMemorySize, MEM_RESERVE, PAGE_READWRITE);
 	// LPVOID -- pointer
 	// LPCVOID -- pointer to constant
 
-	while (localChooseAllocation < 1 && localChooseAllocation > 8)
+	// requesting adress input type
+	while (localInput != 'y' && localInput != 'n')
 	{
-		cout << "Please, input the allocation type constant:\n"
-		<< "1 -- MEM_COMMIT (0x00001000)\n"
-		<< "2 -- MEM_RESERVE (0x00002000)\n"
-		<< "3 -- MEM_RESET (0x00080000)\n"
-		<< "4 -- MEM_RESET_UNDO (0x1000000)\n"
-		<< "5 -- MEM_LARGE_PAGES (0x20000000)\n"
-		<< "6 -- MEM_PHYSICAL (0x00400000)\n"
-		<< "7 -- MEM_TOP_DOWN (0x00100000)\n"
-		<< "8 -- MEM_WRITE_WATCH (0x00200000)\n"
-		<< "9 -- MEM_COMMIT | MEM_RESERVE"
+		cout << "Do you want input adress or not (automatically)? [y/n]\n";
 
-		cin >> localChooseAllocation;
+		cin >> localInput;
 	}
 
-	while (localChooseProtect < 1 && localChooseProtect > 13)
+	// setting adress input type
+	if (localInput == 'y')
 	{
-		cout << "Please, input the allocation type constant:\n"
+		do
+		{
+			cout << "Please, input virtual adress space (in hex, 0x<hex number>): ";
+			cin >> hex >> locallpAddress >> dec;
+			cout << locallpAddress << "[adress check]";
+		}
+		while (locallpAddress < (LPVOID)0x00000000 || locallpAddress > (LPVOID)0xffffffff);
+	}
+	else
+	{
+		locallpAddress = NULL;
+	}
+
+	// requesting help pages
+	while (localHelp != 'y' && localHelp != 'n')
+	{
+		cout << "Do you need the documentation about constants? [y/n]\n";
+
+		cin >> localHelp;
+	}
+
+	// help pages menu
+	if (localHelp == 'y')
+	{
+		localHelp = '-';
+
+		// requesting the documentation output
+		while (localHelp != 'y' && localHelp != 'n')
+		{
+			cout << "Do you need the documentation about constants? [y/n]\n";
+
+			cin >> localHelp;
+		}
+
+		// printing the documentation output
+		if (localHelp == 'y')
+		{
+			cout << "[in] flAllocationType:\n\n";
+
+			cout << "The type of memory allocation. This parameter must contain one of the following values.\n\n";
+
+			cout << "MEM_COMMIT (0x00001000):\n\n"
+			<< "Allocates memory charges (from the overall size of memory and the paging files on disk) for the specified reserved memory pages.\n"
+			<< "The function also guarantees that when the caller later initially accesses the memory, the contents will be zero.\n"
+			<< "Actual physical pages are not allocated unless/until the virtual addresses are actually accessed.\n"
+			<< "To reserve and commit pages in one step, call VirtualAlloc with MEM_COMMIT | MEM_RESERVE.\n"
+			<< "Attempting to commit a specific address range by specifying MEM_COMMIT without MEM_RESERVE and a non-NULL lpAddress fails unless the entire range has already been reserved.\n"
+			<< "The resulting error code is ERROR_INVALID_ADDRESS.\n"
+			<< "An attempt to commit a page that is already committed does not cause the function to fail. This means that you can commit pages without first determining the current commitment state of each page.\n"
+			<< "If lpAddress specifies an address within an enclave, flAllocationType must be MEM_COMMIT.\n\n";
+
+			cout << "MEM_RESERVE (0x00002000):\n\n"
+			<< "Reserves a range of the process's virtual address space without allocating any actual physical storage in memory or in the paging file on disk.\n"
+			<< "You can commit reserved pages in subsequent calls to the VirtualAlloc function.\n"
+			<< "To reserve and commit pages in one step, call VirtualAlloc with MEM_COMMIT | MEM_RESERVE.\n"
+			<< "Other memory allocation functions, such as malloc and LocalAlloc, cannot use a reserved range of memory until it is released.\n\n";
+
+			cout << "MEM_RESET (0x00080000):\n\n"
+			<< "Indicates that data in the memory range specified by lpAddress and dwSize is no longer of interest.\n"
+			<< "The pages should not be read from or written to the paging file.\n"
+			<< "However, the memory block will be used again later, so it should not be decommitted.\n"
+			<< "This value cannot be used with any other value.\n"
+			<< "Using this value does not guarantee that the range operated on with MEM_RESET will contain zeros.\n"
+			<< "If you want the range to contain zeros, decommit the memory and then recommit it.\n"
+			<< "When you specify MEM_RESET, the VirtualAlloc function ignores the value of flProtect.\n"
+			<< "However, you must still set flProtect to a valid protection value, such as PAGE_NOACCESS.\n"
+			<< "VirtualAlloc returns an error if you use MEM_RESET and the range of memory is mapped to a file.\n"
+			<< "A shared view is only acceptable if it is mapped to a paging file.\n\n";
+
+			cout << "MEM_RESET_UNDO (0x1000000):\n\n"
+			<< "MEM_RESET_UNDO should only be called on an address range to which MEM_RESET was successfully applied earlier.\n"
+			<< "It indicates that the data in the specified memory range specified by lpAddress and dwSize is of interest to the caller and attempts to reverse the effects of MEM_RESET.\n"
+			<< "If the function succeeds, that means all data in the specified address range is intact.\n"
+			<< "If the function fails, at least some of the data in the address range has been replaced with zeroes.\n"
+			<< "This value cannot be used with any other value.\n"
+			<< "If MEM_RESET_UNDO is called on an address range which was not MEM_RESET earlier, the behavior is undefined.\n"
+			<< "When you specify MEM_RESET, the VirtualAlloc function ignores the value of flProtect.\n"
+			<< "However, you must still set flProtect to a valid protection value, such as PAGE_NOACCESS.\n"
+			<< "Windows Server 2008 R2, Windows 7, Windows Server 2008, Windows Vista, Windows Server 2003 and Windows XP:\n"
+			<< "The MEM_RESET_UNDO flag is not supported until Windows 8 and Windows Server 2012.\n\n";
+
+			cout << "This parameter can also specify the following values as indicated.\n\n";
+		}
+
+		localHelp = '-';
+
+		// requesting the documentation output
+		while (localHelp != 'y' && localHelp != 'n')
+		{
+			cout << "Do you need the minimum size of a large page? [y/n]\n";
+
+			cin >> localHelp;
+		}
+
+		// printing the minimum size of a large page
+		if (localHelp == 'y')
+		{
+			cout << "The minimum size of a large page: " << GetLargePageMinimum() << "\n";
+		}
+	}
+
+	// choosing and setting the allocation type constant
+	while (localflAllocationType == 0)
+	{
+		cout << "Please, choose the allocation type (you CAN CHOOSE MANY -- JUST SPLIT NUMBERS BY SPACE):\n"
+		<< "[!!!] use MEM_COMMIT to use physical memeory and MEM_RESERVE for VAS reserve\n"
+		<< "1 -- MEM_COMMIT (0x00001000)\n"
+		<< "2 -- MEM_RESERVE (0x00002000)\n"
+		//<< "3 -- MEM_RESET (0x00080000)\n" // if MEM_RESET_UNDO  doesn't work, then MEM_RESET usage is dangerous
+		//<< "4 -- MEM_RESET_UNDO (0x1000000)\n" // compiler declaration error
+		<< "5 -- MEM_LARGE_PAGES (0x20000000)\n"
+		<< "6 -- MEM_PHYSICAL (0x00400000)\n"
+		<< "7 -- MEM_TOP_DOWN (0x00100000)\n";
+		//<< "8 -- MEM_WRITE_WATCH (0x00200000)\n"; // no GetWriteWatch and ResetWriteWatch functions in program
+
+		fflush(stdin);
+		std::getline(std::cin, localChooseAllocation);
+
+		// spit the string
+		std::string s = string(localChooseAllocation);
+		std::string delimiter = " ";
+
+		int i = 0;
+		size_t pos = 0;
+		std::string token;
+		std::vector<string> v;
+		std::vector<int> vect{1, 2, 3, 4, 5, 6, 7, 8}; // all possible switch case numbers (DON'T FORGET WRITE THEM FROM MENU UP THERE)
+		while ((pos = s.find(delimiter)) != std::string::npos)
+		{
+			int tmpNumber = 0;
+		    token = s.substr(0, pos);
+		    v.push_back(token);
+		    tmpNumber = std::stoi(token);
+		    if (std::find(vect.begin(), vect.end(), tmpNumber) != vect.end())
+		    {
+				switch (tmpNumber) // choosing number
+				{
+					case 1:
+						localflAllocationType = localflAllocationType | MEM_COMMIT;
+						break;
+					case 2:
+						localflAllocationType = localflAllocationType | MEM_RESERVE;
+						break;
+					case 3:
+						//localflAllocationType = localflAllocationType | MEM_RESET; // if MEM_RESET_UNDO  doesn't work, then MEM_RESET usage is dangerous
+						break;
+					case 4:
+						//localflAllocationType = localflAllocationType | MEM_RESET_UNDO; // compiler declaration error
+						break;
+					case 5:
+						localflAllocationType = localflAllocationType | MEM_LARGE_PAGES;
+						break;
+					case 6:
+						localflAllocationType = localflAllocationType | MEM_PHYSICAL;
+						break;
+					case 7:
+						localflAllocationType = localflAllocationType | MEM_TOP_DOWN;
+						break;
+					case 8:
+						//localflAllocationType = localflAllocationType | MEM_WRITE_WATCH; // no GetWriteWatch and ResetWriteWatch functions in program
+						break;
+					default:
+						localflAllocationType = localflAllocationType | MEM_RESERVE;
+						break;
+				}
+		    	vect.erase(std::remove(vect.begin(), vect.end(), tmpNumber), vect.end());
+		    }
+		    //std::cout << token << std::endl;
+		    s.erase(0, pos + delimiter.length());
+		}
+
+		int newTMPNumber = std::stoi(s);
+		if (std::find(vect.begin(), vect.end(), newTMPNumber) != vect.end())
+		{
+			switch (newTMPNumber) // choosing number
+			{
+				case 1:
+					localflAllocationType = localflAllocationType | MEM_COMMIT;
+					break;
+				case 2:
+					localflAllocationType = localflAllocationType | MEM_RESERVE;
+					break;
+				case 3:
+					//localflAllocationType = localflAllocationType | MEM_RESET; // if MEM_RESET_UNDO  doesn't work, then MEM_RESET usage is dangerous
+					break;
+				case 4:
+					//localflAllocationType = localflAllocationType | MEM_RESET_UNDO; // compiler declaration error
+					break;
+				case 5:
+					localflAllocationType = localflAllocationType | MEM_LARGE_PAGES;
+					break;
+				case 6:
+					localflAllocationType = localflAllocationType | MEM_PHYSICAL;
+					break;
+				case 7:
+					localflAllocationType = localflAllocationType | MEM_TOP_DOWN;
+					break;
+				case 8:
+					//localflAllocationType = localflAllocationType | MEM_WRITE_WATCH; // no GetWriteWatch and ResetWriteWatch functions in program
+					break;
+				default:
+					localflAllocationType = localflAllocationType | MEM_RESERVE;
+					break;
+			}
+		    vect.erase(std::remove(vect.begin(), vect.end(), newTMPNumber), vect.end());
+		}
+
+		//std::cout << s << std::endl;
+		// end split of the string
+
+		if (localflAllocationType == 0)
+		{
+			cout << "Try again!\n";
+		}
+	}
+
+	// choosing and setting the memory protect constant
+	while (localflProtect == 0)
+	{
+		cout << "Please, choose the memory protect constant (you CAN CHOOSE MANY -- JUST SPLIT NUMBERS BY SPACE):\n"
 		<< "1 -- PAGE_EXECUTE (0x10)\n"
 		<< "2 -- PAGE_EXECUTE_READ (0x20)\n"
-		<< "3 -- PAGE_EXECUTE_READWRITE (0x40)\n"
+		<< "4 -- PAGE_EXECUTE_READWRITE (0x40)\n"
 		<< "4 -- PAGE_EXECUTE_WRITECOPY (0x80)\n"
 		<< "5 -- PAGE_NOACCESS (0x01)\n"
 		<< "6 -- PAGE_READONLY (0x02)\n"
 		<< "7 -- PAGE_READWRITE (0x04)\n"
 		<< "8 -- PAGE_WRITECOPY (0x08)\n"
-		<< "9 -- PAGE_TARGETS_INVALID (0x40000000)\n"
-		<< "10 -- PAGE_TARGETS_NO_UPDATE (0x40000000)\n"
+		//<< "9 -- PAGE_TARGETS_INVALID (0x40000000)\n" // compiler declaration error
+		//<< "10 -- PAGE_TARGETS_NO_UPDATE (0x40000000)\n" // compiler declaration error
 		<< "11 -- PAGE_GUARD (0x100)\n"
 		<< "12 -- PAGE_NOCACHE (0x200)\n"
 		<< "13 -- PAGE_WRITECOMBINE (0x400)\n";
 
-		cin >> localChooseProtect;
+		fflush(stdin);
+		std::getline(std::cin, localChooseProtect);
+
+		// spit the string
+		std::string s = string(localChooseProtect);
+		std::string delimiter = " ";
+
+		int i = 0;
+		size_t pos = 0;
+		std::string token;
+		std::vector<string> v;
+		std::vector<int> vect{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13}; // all possible switch case numbers (DON'T FORGET WRITE THEM FROM MENU UP THERE)
+		while ((pos = s.find(delimiter)) != std::string::npos)
+		{
+			int tmpNumber = 0;
+		    token = s.substr(0, pos);
+		    v.push_back(token);
+		    tmpNumber = std::stoi(token);
+		    if (std::find(vect.begin(), vect.end(), tmpNumber) != vect.end())
+		    {
+				switch (tmpNumber) // choosing number
+				{
+					case 1:
+						localflProtect = localflProtect | PAGE_EXECUTE;
+						break;
+					case 2:
+						localflProtect = localflProtect | PAGE_EXECUTE_READ;
+						break;
+					case 3:
+						localflProtect = localflProtect | PAGE_EXECUTE_READWRITE;
+						break;
+					case 4:
+						localflProtect = localflProtect | PAGE_EXECUTE_WRITECOPY;
+						break;
+					case 5:
+						localflProtect = localflProtect | PAGE_NOACCESS;
+						break;
+					case 6:
+						localflProtect = localflProtect | PAGE_READONLY;
+						break;
+					case 7:
+						localflProtect = localflProtect | PAGE_READWRITE;
+						break;
+					case 8:
+						localflProtect = localflProtect | PAGE_WRITECOPY;
+						break;
+					case 9:
+						//localflProtect = localflProtect | PAGE_TARGETS_INVALID; // compiler declaration error
+						break;
+					case 10:
+						//localflProtect = localflProtect | PAGE_TARGETS_NO_UPDATE; // compiler declaration error
+						break;
+					case 11:
+						localflProtect = localflProtect | PAGE_GUARD;
+						break;
+					case 12:
+						localflProtect = localflProtect | PAGE_NOCACHE;
+						break;
+					case 13:
+						localflProtect = localflProtect | PAGE_WRITECOMBINE;
+						break;
+					default:
+						localflProtect = localflProtect | PAGE_READWRITE;
+						break;
+				}
+		    	vect.erase(std::remove(vect.begin(), vect.end(), tmpNumber), vect.end());
+		    }
+		    //std::cout << token << std::endl;
+		    s.erase(0, pos + delimiter.length());
+		}
+
+		int newTMPNumber = std::stoi(s);
+		if (std::find(vect.begin(), vect.end(), newTMPNumber) != vect.end())
+		{
+			switch (newTMPNumber) // choosing number
+			{
+				case 1:
+					localflProtect = localflProtect | PAGE_EXECUTE;
+					break;
+				case 2:
+					localflProtect = localflProtect | PAGE_EXECUTE_READ;
+					break;
+				case 3:
+					localflProtect = localflProtect | PAGE_EXECUTE_READWRITE;
+					break;
+				case 4:
+					localflProtect = localflProtect | PAGE_EXECUTE_WRITECOPY;
+					break;
+				case 5:
+					localflProtect = localflProtect | PAGE_NOACCESS;
+					break;
+				case 6:
+					localflProtect = localflProtect | PAGE_READONLY;
+					break;
+				case 7:
+					localflProtect = localflProtect | PAGE_READWRITE;
+					break;
+				case 8:
+					localflProtect = localflProtect | PAGE_WRITECOPY;
+					break;
+				case 9:
+					//localflProtect = localflProtect | PAGE_TARGETS_INVALID; // compiler declaration error
+					break;
+				case 10:
+					//localflProtect = localflProtect | PAGE_TARGETS_NO_UPDATE; // compiler declaration error
+					break;
+				case 11:
+					localflProtect = localflProtect | PAGE_GUARD;
+					break;
+				case 12:
+					localflProtect = localflProtect | PAGE_NOCACHE;
+					break;
+				case 13:
+					localflProtect = localflProtect | PAGE_WRITECOMBINE;
+					break;
+				default:
+					localflProtect = localflProtect | PAGE_READWRITE;
+					break;
+			}
+		    vect.erase(std::remove(vect.begin(), vect.end(), newTMPNumber), vect.end());
+		}
+
+		//std::cout << s << std::endl;
+		// end split of the string
+
+		if (localflProtect == 0)
+		{
+			cout << "Try again!\n";
+		}
+	}
+
+	LPVOID localVirtualAlloc = VirtualAlloc (locallpAddress, localMemorySize, localflAllocationType, localflProtect);
+
+	cout << "Your adress space is from (including) " localVirtualAlloc << " to (including) " << localVirtualAlloc + localMemorySize - 1;
+
+	cout << "bool:\t\t" << sizeof(bool) << " bytes\n";
+	cout << "char:\t\t" << sizeof(char) << " bytes\n";
+	cout << "wchar_t:\t" << sizeof(wchar_t) << " bytes\n";
+	cout << "char16_t:\t" << sizeof(char16_t) << " bytes\n";
+	cout << "char32_t:\t" << sizeof(char32_t) << " bytes\n"; 
+	cout << "short:\t\t" << sizeof(short) << " bytes\n";
+	cout << "int:\t\t" << sizeof(int) << " bytes\n";
+	cout << "long:\t\t" << sizeof(long) << " bytes\n";
+	cout << "long long:\t" << sizeof(long long) << " bytes\n";
+	cout << "float:\t\t" << sizeof(float) << " bytes\n";
+	cout << "double:\t\t" << sizeof(double) << " bytes\n";
+	cout << "long double:\t" << sizeof(long double) << " bytes\n";
+
+	cout << "Please, choose the starting adress: ";
+	cout << "Please, choose the input type: ";
+
+	cout << "Please, choose the starting adress: ";
+	cout << "Please, choose the output type";
+
+	if (??? < localVirtualAlloc)
+	{
+		cout << "Adress is out (is less) of possible allocated range, please, try again!";
+	}
+	else if (sizeof(bool) + ??? - 1 > localVirtualAlloc + localMemorySize - 1)
+	{
+		cout << "Address is out (is more) of possible allocated range, please, try again!";
 	}
 
 	if (localVirtualAlloc != NULL)
 	{
 		cout << "Allocation was successfull\n" << localVirtualAlloc << "\n";
+		cout << sizeof (short) << " " << sizeof (char) << " end\n";
+		//short* a = (short*) localVirtualAlloc + localMemorySize;
+		char* b = (char*) localVirtualAlloc + localMemorySize - 1;
+
+		cout << " " << *b << "\n";
+
+		cout << " char " << *b;
 		if (VirtualFree (localVirtualAlloc, 0, MEM_RELEASE))
 		{
 			cout << "Free was successfull\n";
 		}
 		else
 		{
-			cout << "Free was NOT successfull" << endl;
+			cout << "Free was NOT successfull. The last error code: " << GetLastError() << "\n";
 		}
 	}
 	else
 	{
-		cout << "Allocation was NOT successfull\n";
+		cout << "Allocation was NOT successfull. The last error code: " << GetLastError() << "\n";
 	}
 
 	// Physical memory refers to the actual RAM of the system
