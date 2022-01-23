@@ -110,7 +110,7 @@ DWORD WINAPI countingPI(LPVOID localInThreads)
         {
             localResult = 0.0;
 
-            for (i = startPoint; i <= endPoint; i++) // formula counting
+            for (i = startPoint; i++ <= endPoint; ) // formula counting
             {
                 localResult = localResult + (4 / (1 + (((long double)i + 0.5) / (long double)N)*(((long double)i + 0.5) / (long double)N)));
             }
