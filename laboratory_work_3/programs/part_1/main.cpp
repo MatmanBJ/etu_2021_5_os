@@ -1,7 +1,7 @@
 #include <iostream>
+#include <windows.h>
 #include <string>
 #include <iomanip>
-#include <windows.h>
 
 using namespace std;
 
@@ -26,6 +26,24 @@ size_t pi_blocks_n;
 const size_t BLOCKSIZE = 10 * 930824; // iteration distribution for threads
 const size_t N = 100000000; // N iterations (not sigs after comma)
 
+DWORD WINAPI piCalc1(LPVOID lpParam);
+long double processPI1(const size_t N, const unsigned threadNum, const size_t blocksize, DWORD *milisec);
+
+int main (int argc, char **argv)
+{
+    int numberOfThreads[] = {1, 2, 4, 8, 12, 16}; // number of threads
+    int arraySize = sizeof(numberOfThreads)/sizeof(numberOfThreads[0]); // counting an array size
+    DWORD milisec = -1; // milliseconds, which will take the pi counting
+    long double calculatedpi; // the %pi number
+
+    for (int i = 0; i < arraySize; i++)
+    {
+        calculatedpi = processPI1(N, numberOfThreads[i], BLOCKSIZE, &milisec);
+        cout << "\nThreads number: " << numberOfThreads[i] << " Time: " << milisec << " ms" << setprecision(N) << " %pi: " << calculatedpi << "\n";
+    }
+    return 0;
+}
+
 DWORD WINAPI piCalc1(LPVOID lpParam)
 {
     Params1 *par = (Params1*)lpParam;
@@ -43,8 +61,6 @@ DWORD WINAPI piCalc1(LPVOID lpParam)
         {
             cout << "Problem with SELECT WaitForSingleObject (return = " << waitError << "). Error: " << GetLastError() << endl;
         }
-
-
 
         if(pi_blocks_i < pi_blocks_n)
         {
@@ -103,12 +119,16 @@ DWORD WINAPI piCalc1(LPVOID lpParam)
 
 long double processPI1(const size_t N, const unsigned threadNum, const size_t blocksize, DWORD *milisec)
 {
+    // initilaizing objects and variables
+
     NN = N;
     BS = blocksize;
-
-    long double respi = 0.0;
     pi_blocks_i = 0;
     pi_blocks_n = NN % blocksize == 0?NN/blocksize:NN/blocksize + 1;
+    long double localPI = 0.0;
+    DWORD waitError;
+    DWORD startTime;
+    DWORD finishTime;
 
     // synchronizing object (mutex) creation
 
@@ -131,14 +151,14 @@ long double processPI1(const size_t N, const unsigned threadNum, const size_t bl
 
     Params1 *params = new Params1[threadNum];
     HANDLE *ths = new HANDLE[threadNum];
-    for (unsigned i = 0; i < threadNum; ++i)
+    for (unsigned i = 0; i < threadNum; i++)
     {
         ths[i] = CreateThread(NULL, 0, piCalc1, &(params[i]), CREATE_SUSPENDED, NULL);
         params[i].h = ths[i];
         if (params[i].h == NULL)
         {
             cout << "Problem with creating thread. Error: " << GetLastError() << endl;
-            for (unsigned j = 0; j < i; ++j)
+            for (unsigned j = 0; j < i; j++)
             {
                 CloseHandle(params[j].h);
             }
@@ -149,7 +169,7 @@ long double processPI1(const size_t N, const unsigned threadNum, const size_t bl
             return -1;
         }
         params[i].localSUM = 0;
-        params[i].globalSUM = &respi;
+        params[i].globalSUM = &localPI;
 
         if (SetThreadPriority(params[i].h, THREAD_PRIORITY_HIGHEST) == 0)
         {
@@ -157,17 +177,13 @@ long double processPI1(const size_t N, const unsigned threadNum, const size_t bl
         }
     }
 
-    DWORD waitError;
-    DWORD startTime;
-    DWORD finishTime;
-
     // starting the timer
 
     startTime = GetTickCount();
 
     // starting threads for counting pi-number (just starting here)
 
-    for (unsigned i = 0; i < threadNum; ++i)
+    for (unsigned i = 0; i < threadNum; i++)
     {
         ResumeThread(ths[i]);
     }
@@ -176,7 +192,7 @@ long double processPI1(const size_t N, const unsigned threadNum, const size_t bl
 
     waitError = WaitForMultipleObjects(threadNum, ths, true, INFINITE);
 
-    respi /= N;
+    localPI /= N;
 
     // ending the timer
     
@@ -204,50 +220,5 @@ long double processPI1(const size_t N, const unsigned threadNum, const size_t bl
 
     *milisec = finishTime - startTime;
 
-    return respi;
-}
-
-int main (int argc, char **argv)
-{
-    if (argc == 1)
-    {
-        const unsigned maxThreads = 32;
-        const unsigned attempts = 10;
-        DWORD buffMilisec;
-        unsigned *reses = new unsigned[maxThreads];
-        unsigned *x = new unsigned[maxThreads];
-        for(unsigned i = 1; i <= maxThreads; ++i)
-        {
-            DWORD avgMilisec = 0;
-            cout << "For " << i << " threads: " << endl;
-            for(unsigned j = 0; j < attempts; ++j)
-            {
-                cout << setprecision(80) << "Circle " << (j+1) << ": " << processPI1(N, i, BLOCKSIZE, &buffMilisec) << endl;
-                avgMilisec += buffMilisec;
-            }
-            avgMilisec /= attempts;
-            reses[i-1] = avgMilisec;
-            x[i-1] = i;
-            cout << "Threads " << i << ": " << avgMilisec << " milisec (" << (long double)avgMilisec / 1000 << " sec). " << endl;
-        }
-        //cout << endl << makeCodeForMatLab(x, reses, maxThreads) << endl;
-        delete reses;
-        delete x;
-    }
-    else if(argc == 2)
-    {
-        unsigned threadNum = atoi(argv[1]);
-        DWORD milisec = -1;
-        long double calculatedpi = processPI1(N, threadNum, BLOCKSIZE, &milisec);
-        cout << setprecision(N) << "Calculated pi = " << calculatedpi << endl;
-        cout << "Time = " << milisec << " milisec (" << (long double)milisec / 1000 << " sec)." << endl;
-        //cout << sizeof(long double) << " " << sizeof(double) << endl; // "16 8"
-    }
-    else
-    {
-        cout << "Syntax error! " << endl;
-        cout << "Expected: \"" << "> lab3.1.exe threadNum" << "\" or \"" << "> lab3.1.exe" << "\". " << endl;
-        return -1;
-    }
-    return 0;
+    return localPI;
 }
