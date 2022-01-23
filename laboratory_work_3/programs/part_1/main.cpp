@@ -2,30 +2,33 @@
 #include <windows.h>
 #include <string>
 #include <iomanip>
+#include <list>
+#include <numeric>
 
 using namespace std;
 
 struct Params1
 {
-    HANDLE h;
+public:
+    HANDLE handle;
     long double localSUM;
     long double *globalSUM;
-    std::size_t begin;
-    std::size_t end;
+    size_t begin;
+    size_t end;
 };
 
 DWORD startTime = 0; // starting counting pi-number point
 DWORD finishTime = 0; // ending counting pi-number point
 DWORD allTime = -1; // milliseconds, which will take the pi counting
-
 size_t pi_blocks_i;
 size_t pi_blocks_n;
-
-HANDLE synchIteration;
-HANDLE synchSummary;
-
+HANDLE synchIteration; // synchronizing iteration mutex
+HANDLE synchSummary; // synchronizing summary mutex
 const size_t BLOCKSIZE = 10 * 930824; // iteration distribution for threads
-const size_t N = 100000000; // N iterations (not sigs after comma)
+const size_t N = 100000000; // N iterations (not signs after comma)
+
+list<long double> list1;
+long double summaryResult = 0.0; // final pi result for each number of threads
 
 DWORD WINAPI countingPI(LPVOID lpParam);
 long double preparingPI(int threadNum);
@@ -38,8 +41,11 @@ int main (int argc, char **argv)
 
     for (int i = 0; i < arraySize; i++)
     {
+    	list1.clear();
+    	summaryResult = 0.0;
         piNumber = preparingPI(numberOfThreads[i]);
         cout << "\nThreads number: " << numberOfThreads[i] << " Time: " << allTime << " ms" << setprecision(N) << " %pi: " << piNumber << "\n";
+        cout << summaryResult;
     }
     return 0;
 }
@@ -47,8 +53,9 @@ int main (int argc, char **argv)
 DWORD WINAPI countingPI(LPVOID lpParam)
 {
     Params1 *par = (Params1*)lpParam;
-    int isuicide;
-    do
+    int i;
+    int isuicide = 1;
+    while (isuicide != -1)
     {
         //==========GetIterBlock==========BEGIN
 
@@ -56,63 +63,77 @@ DWORD WINAPI countingPI(LPVOID lpParam)
 
         //=====critical SELECT block=====BEGIN
 
-        waitError = WaitForSingleObject(synchIteration, INFINITE);
-        if (waitError != WAIT_OBJECT_0 /*Или WAIT_TIMEOUT, если отвалились по таймеру*/)
+        // SYNCHRONIZING ITERATIONS -- START
+
+        waitError = WaitForSingleObject (synchIteration, INFINITE); // while isn't released, i can't quit
+
+        if (waitError != WAIT_OBJECT_0)
         {
-            cout << "Problem with SELECT WaitForSingleObject (return = " << waitError << "). Error: " << GetLastError() << endl;
+            cout << "Problem with SELECT WaitForSingleObject (return = " << waitError << "). Last error number: " << GetLastError() << "\n";
         }
 
-        if(pi_blocks_i < pi_blocks_n)
+        if (pi_blocks_i < pi_blocks_n)
         {
-            (*par).begin = pi_blocks_i * BLOCKSIZE;
-            (*par).end = (pi_blocks_i+1) * BLOCKSIZE;
-            if((*par).end > N - 1)
+            (*par).begin = pi_blocks_i * BLOCKSIZE; // blocksize number start (iteration*number_of_items_in_block)
+            (*par).end = (pi_blocks_i + 1) * BLOCKSIZE - 1; // blocksize number end (iteration*number) // HERE CHANGED FORMULA
+            if ((*par).end > N - 1) // checking for out of range error
             {
                 (*par).end = N - 1;
             }
-            ++pi_blocks_i;
+            pi_blocks_i = pi_blocks_i + 1; // increasing iteration number
         }
         else
         {
-            (*par).begin = 10;
+            (*par).begin = 2;
             (*par).end = 1;
         }
 
         ReleaseMutex(synchIteration);
-        //=====critical SELECT block=====END
 
-        //==========GetIterBlock==========END
+        // SYNCHRONIZING ITERATIONS -- END
 
-        if((*par).begin <= (*par).end)
+        if ((*par).begin <= (*par).end)
         {
-            //pi!!!!!!!!!!!!!!!!!!!!!!
             long double xi;
             (*par).localSUM = 0;
-            for(size_t i = (*par).begin; i <= (*par).end; ++i)
+
+            long double localResult = 0.0;
+
+            for (i = (*par).begin; i <= (*par).end; i++) // formula counting
             {
-                xi = ((long double)i + 0.5);
-                xi /= (long double)N;
-                (*par).localSUM += (4 / (1 + xi*xi));
+                //xi = ((long double)i + 0.5);
+                //xi = xi / (long double)N;
+                //(*par).localSUM = (*par).localSUM + (4 / (1 + xi*xi));
+
+                //*((*par).globalSUM) = *((*par).globalSUM) + (*par).localSUM;
+
+                localResult = localResult + (4 / (1 + (((long double)i + 0.5) / (long double)N)*(((long double)i + 0.5) / (long double)N)));
+
+                //(*par).localSUM = (*par).localSUM + (4 / (1 + (((long double)i + 0.5) / (long double)N)*(((long double)i + 0.5) / (long double)N)));
             }
-            
-            //=====critical SUM block=====BEGIN
-            waitError = WaitForSingleObject(synchSummary, INFINITE);
-            if (waitError != WAIT_OBJECT_0 /*Или WAIT_TIMEOUT, если отвалились по таймеру*/)
+
+            list1.push_back(localResult);
+
+            // SYNCRONIZING SUMMARY -- BEGIN
+
+            waitError = WaitForSingleObject (synchSummary, INFINITE);
+
+            if (waitError != WAIT_OBJECT_0)
             {
                 cout << "Problem with SELECT WaitForSingleObject (return = " << waitError << "). Error: " << GetLastError() << endl;
             }
             
-            *((*par).globalSUM) += (*par).localSUM;
+            //*((*par).globalSUM) = *((*par).globalSUM) + (*par).localSUM;
 
-            ReleaseMutex(synchSummary);
-            //=====critical SUM block=====END
+            ReleaseMutex (synchSummary);
+
+            // SYNCHRONIZING SUMMARY -- END
         }
         else
         {
             isuicide = -1;
         }
     }
-    while(isuicide != -1);
     
     return 0;
 }
@@ -140,7 +161,7 @@ long double preparingPI(int threadNum)
     for (i = 0; i < threadNum; i++)
     {
         threadsArray[i] = CreateThread (NULL, 0, countingPI, &(lpParameters[i]), CREATE_SUSPENDED, NULL);
-        lpParameters[i].h = threadsArray[i];
+        lpParameters[i].handle = threadsArray[i];
         lpParameters[i].localSUM = 0;
         lpParameters[i].globalSUM = &localPI;
     }
@@ -162,7 +183,10 @@ long double preparingPI(int threadNum)
 
     waitError = WaitForMultipleObjects(threadNum, threadsArray, true, INFINITE);
 
-    localPI = localPI/N;
+    summaryResult = std::accumulate(std::begin(list1), std::end(list1), 0.0);
+    summaryResult = summaryResult / N;
+
+    //localPI = localPI/N;
 
     // ending the timer
     
