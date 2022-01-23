@@ -7,14 +7,11 @@
 
 using namespace std;
 
-struct Params1
+struct InThreads
 {
 public:
-    HANDLE handle;
-    long double localSUM;
-    long double *globalSUM;
-    size_t begin;
-    size_t end;
+    size_t startPoint;
+    size_t endPoint;
 };
 
 DWORD startTime = 0; // starting counting pi-number point
@@ -27,11 +24,11 @@ HANDLE synchSummary; // synchronizing summary mutex
 const size_t BLOCKSIZE = 10 * 930824; // iteration distribution for threads
 const size_t N = 100000000; // N iterations (not signs after comma)
 
-list<long double> list1;
+list<long double> list1; // list of the all parts to summary
 long double summaryResult = 0.0; // final pi result for each number of threads
 
-DWORD WINAPI countingPI(LPVOID lpParam);
-long double preparingPI(int threadNum);
+DWORD WINAPI countingPI (LPVOID localInThreads);
+long double preparingPI (int localNumberOfThreads);
 
 int main (int argc, char **argv)
 {
@@ -50,24 +47,20 @@ int main (int argc, char **argv)
     return 0;
 }
 
-DWORD WINAPI countingPI(LPVOID lpParam)
+DWORD WINAPI countingPI(LPVOID localInThreads)
 {
-    Params1 *par = (Params1*)lpParam;
+    InThreads *inThread = (InThreads*)localInThreads;
     int i; // iterator
     int isuicide = 1; // indicator
+    size_t startPoint = 2;
+    size_t endPoint = 1;
     long double localResult = 0.0; // local result summary
 
     while (isuicide != -1)
     {
-        //==========GetIterBlock==========BEGIN
-
-        DWORD waitError;
-
-        //=====critical SELECT block=====BEGIN
-
         // SYNCHRONIZING ITERATIONS -- START
 
-        waitError = WaitForSingleObject (synchIteration, INFINITE); // while isn't released, i can't quit
+        DWORD waitError = WaitForSingleObject (synchIteration, INFINITE); // while isn't released, i can't quit
 
         if (waitError != WAIT_OBJECT_0)
         {
@@ -76,29 +69,29 @@ DWORD WINAPI countingPI(LPVOID lpParam)
 
         if (pi_blocks_i < pi_blocks_n)
         {
-            (*par).begin = pi_blocks_i * BLOCKSIZE; // blocksize number start (iteration*number_of_items_in_block)
-            (*par).end = (pi_blocks_i + 1) * BLOCKSIZE - 1; // blocksize number end (iteration*number) // HERE CHANGED FORMULA
-            if ((*par).end > N - 1) // checking for out of range error
+            startPoint = pi_blocks_i * BLOCKSIZE; // blocksize number start (iteration*number_of_items_in_block)
+            endPoint = (pi_blocks_i + 1) * BLOCKSIZE - 1; // blocksize number end (iteration*number) // HERE CHANGED FORMULA
+            if (endPoint > N - 1) // checking for out of range error
             {
-                (*par).end = N - 1;
+                endPoint = N - 1;
             }
             pi_blocks_i = pi_blocks_i + 1; // increasing iteration number
         }
         else
         {
-            (*par).begin = 2;
-            (*par).end = 1;
+        	startPoint = 2;
+			endPoint = 1;
         }
 
-        ReleaseMutex(synchIteration);
+        ReleaseMutex (synchIteration);
 
         // SYNCHRONIZING ITERATIONS -- END
 
-        if ((*par).begin <= (*par).end)
+        if (startPoint <= endPoint)
         {
             localResult = 0.0;
 
-            for (i = (*par).begin; i <= (*par).end; i++) // formula counting
+            for (i = startPoint; i <= endPoint; i++) // formula counting
             {
                 localResult = localResult + (4 / (1 + (((long double)i + 0.5) / (long double)N)*(((long double)i + 0.5) / (long double)N)));
             }
@@ -127,7 +120,7 @@ DWORD WINAPI countingPI(LPVOID lpParam)
     return 0;
 }
 
-long double preparingPI(int threadNum)
+long double preparingPI(int localNumberOfThreads)
 {
 	// 1 -- PREPARING AND INITIALIZING
 
@@ -138,8 +131,8 @@ long double preparingPI(int threadNum)
     int i = 0;
     long double localPI = 0.0;
     DWORD waitError;
-    Params1 *lpParameters = new Params1[threadNum];
-    HANDLE *threadsArray = new HANDLE[threadNum];
+    InThreads *lpParameters = new InThreads[localNumberOfThreads];
+    HANDLE *threadsArray = new HANDLE[localNumberOfThreads];
     synchIteration = CreateMutex (NULL, FALSE, NULL); // synchronizing object for selected iterations
     synchSummary = CreateMutex (NULL, FALSE, NULL); // synchronizing object for summary counting
 
@@ -147,10 +140,9 @@ long double preparingPI(int threadNum)
 
     // creating threads for counting pi-number (just creating and setting threads here)
 
-    for (i = 0; i < threadNum; i++)
+    for (i = 0; i < localNumberOfThreads; i++)
     {
         threadsArray[i] = CreateThread (NULL, 0, countingPI, &(lpParameters[i]), CREATE_SUSPENDED, NULL);
-        lpParameters[i].handle = threadsArray[i];
     }
 
     // 3 -- COUNTING PI-NUMBER
@@ -161,14 +153,14 @@ long double preparingPI(int threadNum)
 
     // starting threads for counting pi-number (just starting here)
 
-    for (unsigned i = 0; i < threadNum; i++)
+    for (unsigned i = 0; i < localNumberOfThreads; i++)
     {
         ResumeThread (threadsArray[i]);
     }
 
     // waiting until all threads will be released
 
-    waitError = WaitForMultipleObjects(threadNum, threadsArray, true, INFINITE);
+    waitError = WaitForMultipleObjects(localNumberOfThreads, threadsArray, true, INFINITE);
 
     // making the final result
 
@@ -187,7 +179,7 @@ long double preparingPI(int threadNum)
 
     // "cleaning": closing handles adn cleaning memory
 
-    for (i = 0; i < threadNum; ++i)
+    for (i = 0; i < localNumberOfThreads; ++i)
     {
         CloseHandle(threadsArray[i]);
     }
