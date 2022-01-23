@@ -14,11 +14,15 @@ struct Params1
     std::size_t end;
 };
 
+DWORD startTime = 0; // starting counting pi-number point
+DWORD finishTime = 0; // ending counting pi-number point
+DWORD allTime = -1; // milliseconds, which will take the pi counting
+
 size_t BS;
 size_t NN;
 
-HANDLE hMutexSELECT;
-HANDLE hMutexSUM;
+HANDLE synchIteration;
+HANDLE synchSummary;
 
 size_t pi_blocks_i;
 size_t pi_blocks_n;
@@ -27,19 +31,18 @@ const size_t BLOCKSIZE = 10 * 930824; // iteration distribution for threads
 const size_t N = 100000000; // N iterations (not sigs after comma)
 
 DWORD WINAPI piCalc1(LPVOID lpParam);
-long double processPI1(const size_t N, const unsigned threadNum, const size_t blocksize, DWORD *milisec);
+long double processPI1(int N, int threadNum, int blocksize);
 
 int main (int argc, char **argv)
 {
     int numberOfThreads[] = {1, 2, 4, 8, 12, 16}; // number of threads
     int arraySize = sizeof(numberOfThreads)/sizeof(numberOfThreads[0]); // counting an array size
-    DWORD milisec = -1; // milliseconds, which will take the pi counting
-    long double calculatedpi; // the %pi number
+    long double piNumber; // the %pi number
 
     for (int i = 0; i < arraySize; i++)
     {
-        calculatedpi = processPI1(N, numberOfThreads[i], BLOCKSIZE, &milisec);
-        cout << "\nThreads number: " << numberOfThreads[i] << " Time: " << milisec << " ms" << setprecision(N) << " %pi: " << calculatedpi << "\n";
+        piNumber = processPI1(N, numberOfThreads[i], BLOCKSIZE);
+        cout << "\nThreads number: " << numberOfThreads[i] << " Time: " << allTime << " ms" << setprecision(N) << " %pi: " << piNumber << "\n";
     }
     return 0;
 }
@@ -56,7 +59,7 @@ DWORD WINAPI piCalc1(LPVOID lpParam)
 
         //=====critical SELECT block=====BEGIN
 
-        waitError = WaitForSingleObject(hMutexSELECT, INFINITE);
+        waitError = WaitForSingleObject(synchIteration, INFINITE);
         if (waitError != WAIT_OBJECT_0 /*Или WAIT_TIMEOUT, если отвалились по таймеру*/)
         {
             cout << "Problem with SELECT WaitForSingleObject (return = " << waitError << "). Error: " << GetLastError() << endl;
@@ -78,7 +81,7 @@ DWORD WINAPI piCalc1(LPVOID lpParam)
             (*par).end = 1;
         }
 
-        ReleaseMutex(hMutexSELECT);
+        ReleaseMutex(synchIteration);
         //=====critical SELECT block=====END
 
         //==========GetIterBlock==========END
@@ -96,7 +99,7 @@ DWORD WINAPI piCalc1(LPVOID lpParam)
             }
             
             //=====critical SUM block=====BEGIN
-            waitError = WaitForSingleObject(hMutexSUM, INFINITE);
+            waitError = WaitForSingleObject(synchSummary, INFINITE);
             if (waitError != WAIT_OBJECT_0 /*Или WAIT_TIMEOUT, если отвалились по таймеру*/)
             {
                 cout << "Problem with SELECT WaitForSingleObject (return = " << waitError << "). Error: " << GetLastError() << endl;
@@ -104,7 +107,7 @@ DWORD WINAPI piCalc1(LPVOID lpParam)
             
             *((*par).globalSUM) += (*par).localSUM;
 
-            ReleaseMutex(hMutexSUM);
+            ReleaseMutex(synchSummary);
             //=====critical SUM block=====END
         }
         else
@@ -117,65 +120,72 @@ DWORD WINAPI piCalc1(LPVOID lpParam)
     return 0;
 }
 
-long double processPI1(const size_t N, const unsigned threadNum, const size_t blocksize, DWORD *milisec)
+long double processPI1(int N, int threadNum, int blocksize)
 {
+	// 1 -- PREPARING AND INITIALIZING
+
     // initilaizing objects and variables
 
     NN = N;
     BS = blocksize;
     pi_blocks_i = 0;
     pi_blocks_n = NN % blocksize == 0?NN/blocksize:NN/blocksize + 1;
+    int i = 0;
+    int j = 0;
     long double localPI = 0.0;
     DWORD waitError;
-    DWORD startTime;
-    DWORD finishTime;
+    Params1 *lpParameters = new Params1[threadNum];
+    HANDLE *threadsArray = new HANDLE[threadNum];
+    synchIteration = CreateMutex (NULL, FALSE, NULL); // synchronizing object for selected iterations
+    synchSummary = CreateMutex (NULL, FALSE, NULL); // synchronizing object for summary counting
+
+    // 2 -- CHECKING THREADS AND CREATING THREADS
 
     // synchronizing object (mutex) creation
 
-    hMutexSELECT = CreateMutex(NULL, FALSE, NULL); // synchronizing object for selected iterations
-    if(hMutexSELECT == NULL)
+    if (synchIteration == NULL) // checking for mutex correct creation
     {
-        cout << "Problem with creating hMutexSELECT. Error: " << GetLastError() << endl;
+        cout << "Mutex iteration synchronizing creation problem. Last error number is " << GetLastError() << ".\n";
         return -1;
     }
-
-    hMutexSUM = CreateMutex(NULL, FALSE, NULL); // synchronizing object for summary counting
-    if(hMutexSUM == NULL)
+    if (synchSummary == NULL) // checking for mutex correct creation
     {
-        cout << "Problem with creating hMutexSUM. Error: " << GetLastError() << endl;
-        CloseHandle(hMutexSELECT);
+        cout << "Mutex summary synchronizing creation problem. Last error number is " << GetLastError() << ".\n";
+        CloseHandle(synchIteration);
         return -1;
     }
 
     // creating threads for counting pi-number (just creating and setting threads here)
 
-    Params1 *params = new Params1[threadNum];
-    HANDLE *ths = new HANDLE[threadNum];
-    for (unsigned i = 0; i < threadNum; i++)
+    for (i = 0; i < threadNum; i++)
     {
-        ths[i] = CreateThread(NULL, 0, piCalc1, &(params[i]), CREATE_SUSPENDED, NULL);
-        params[i].h = ths[i];
-        if (params[i].h == NULL)
+        threadsArray[i] = CreateThread (NULL, 0, piCalc1, &(lpParameters[i]), CREATE_SUSPENDED, NULL);
+        lpParameters[i].h = threadsArray[i];
+        if (lpParameters[i].h == NULL)
         {
-            cout << "Problem with creating thread. Error: " << GetLastError() << endl;
-            for (unsigned j = 0; j < i; j++)
+            cout << "Tread creation problem. Last error number is " << GetLastError() << "\n";
+            for (j = 0; j < i; j++)
             {
-                CloseHandle(params[j].h);
+                CloseHandle (lpParameters[j].h);
             }
-            CloseHandle(hMutexSELECT);
-            CloseHandle(hMutexSUM);
-            delete params;
-            delete ths;
+            CloseHandle (synchIteration);
+            CloseHandle (synchSummary);
+            delete lpParameters;
+            delete threadsArray;
             return -1;
         }
-        params[i].localSUM = 0;
-        params[i].globalSUM = &localPI;
-
-        if (SetThreadPriority(params[i].h, THREAD_PRIORITY_HIGHEST) == 0)
+        else
         {
-            cout << "Problem with changing thread priority. Error: " << GetLastError() << endl;
+	        lpParameters[i].localSUM = 0;
+	        lpParameters[i].globalSUM = &localPI;
+	        if (SetThreadPriority (lpParameters[i].h, THREAD_PRIORITY_HIGHEST) == 0)
+	        {
+	            cout << "Problem with changing thread priority. Error: " << GetLastError() << "\n";
+	        }
         }
     }
+
+    // 3 -- COUNTING PI-NUMBER
 
     // starting the timer
 
@@ -185,18 +195,24 @@ long double processPI1(const size_t N, const unsigned threadNum, const size_t bl
 
     for (unsigned i = 0; i < threadNum; i++)
     {
-        ResumeThread(ths[i]);
+        ResumeThread (threadsArray[i]);
     }
 
     // waiting until all threads will be released
 
-    waitError = WaitForMultipleObjects(threadNum, ths, true, INFINITE);
+    waitError = WaitForMultipleObjects(threadNum, threadsArray, true, INFINITE);
 
-    localPI /= N;
+    localPI = localPI/N;
 
     // ending the timer
     
     finishTime = GetTickCount();
+
+    // counting final time
+
+    allTime = finishTime - startTime;
+
+    // 4 -- ENDING AND CLEANING
 
     // error checking
 
@@ -209,16 +225,12 @@ long double processPI1(const size_t N, const unsigned threadNum, const size_t bl
 
     for (unsigned i = 0; i < threadNum; ++i)
     {
-        CloseHandle(ths[i]);
+        CloseHandle(threadsArray[i]);
     }
-    CloseHandle(hMutexSELECT);
-    CloseHandle(hMutexSUM);
-    delete params;
-    delete ths;
-
-    // counting final time
-
-    *milisec = finishTime - startTime;
+    CloseHandle(synchIteration);
+    CloseHandle(synchSummary);
+    delete lpParameters;
+    delete threadsArray;
 
     return localPI;
 }
