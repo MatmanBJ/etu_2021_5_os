@@ -18,20 +18,17 @@ DWORD startTime = 0; // starting counting pi-number point
 DWORD finishTime = 0; // ending counting pi-number point
 DWORD allTime = -1; // milliseconds, which will take the pi counting
 
-size_t BS;
-size_t NN;
+size_t pi_blocks_i;
+size_t pi_blocks_n;
 
 HANDLE synchIteration;
 HANDLE synchSummary;
 
-size_t pi_blocks_i;
-size_t pi_blocks_n;
-
 const size_t BLOCKSIZE = 10 * 930824; // iteration distribution for threads
 const size_t N = 100000000; // N iterations (not sigs after comma)
 
-DWORD WINAPI piCalc1(LPVOID lpParam);
-long double processPI1(int N, int threadNum, int blocksize);
+DWORD WINAPI countingPI(LPVOID lpParam);
+long double preparingPI(int threadNum);
 
 int main (int argc, char **argv)
 {
@@ -41,13 +38,13 @@ int main (int argc, char **argv)
 
     for (int i = 0; i < arraySize; i++)
     {
-        piNumber = processPI1(N, numberOfThreads[i], BLOCKSIZE);
+        piNumber = preparingPI(numberOfThreads[i]);
         cout << "\nThreads number: " << numberOfThreads[i] << " Time: " << allTime << " ms" << setprecision(N) << " %pi: " << piNumber << "\n";
     }
     return 0;
 }
 
-DWORD WINAPI piCalc1(LPVOID lpParam)
+DWORD WINAPI countingPI(LPVOID lpParam)
 {
     Params1 *par = (Params1*)lpParam;
     int isuicide;
@@ -67,11 +64,11 @@ DWORD WINAPI piCalc1(LPVOID lpParam)
 
         if(pi_blocks_i < pi_blocks_n)
         {
-            (*par).begin = pi_blocks_i * BS;
-            (*par).end = (pi_blocks_i+1) * BS;
-            if((*par).end > NN-1)
+            (*par).begin = pi_blocks_i * BLOCKSIZE;
+            (*par).end = (pi_blocks_i+1) * BLOCKSIZE;
+            if((*par).end > N - 1)
             {
-                (*par).end = NN - 1;
+                (*par).end = N - 1;
             }
             ++pi_blocks_i;
         }
@@ -94,7 +91,7 @@ DWORD WINAPI piCalc1(LPVOID lpParam)
             for(size_t i = (*par).begin; i <= (*par).end; ++i)
             {
                 xi = ((long double)i + 0.5);
-                xi /= (long double)NN;
+                xi /= (long double)N;
                 (*par).localSUM += (4 / (1 + xi*xi));
             }
             
@@ -120,18 +117,15 @@ DWORD WINAPI piCalc1(LPVOID lpParam)
     return 0;
 }
 
-long double processPI1(int N, int threadNum, int blocksize)
+long double preparingPI(int threadNum)
 {
 	// 1 -- PREPARING AND INITIALIZING
 
     // initilaizing objects and variables
 
-    NN = N;
-    BS = blocksize;
     pi_blocks_i = 0;
-    pi_blocks_n = NN % blocksize == 0?NN/blocksize:NN/blocksize + 1;
+    pi_blocks_n = N % BLOCKSIZE == 0?N/BLOCKSIZE:N/BLOCKSIZE + 1;
     int i = 0;
-    int j = 0;
     long double localPI = 0.0;
     DWORD waitError;
     Params1 *lpParameters = new Params1[threadNum];
@@ -141,48 +135,14 @@ long double processPI1(int N, int threadNum, int blocksize)
 
     // 2 -- CHECKING THREADS AND CREATING THREADS
 
-    // synchronizing object (mutex) creation
-
-    if (synchIteration == NULL) // checking for mutex correct creation
-    {
-        cout << "Mutex iteration synchronizing creation problem. Last error number is " << GetLastError() << ".\n";
-        return -1;
-    }
-    if (synchSummary == NULL) // checking for mutex correct creation
-    {
-        cout << "Mutex summary synchronizing creation problem. Last error number is " << GetLastError() << ".\n";
-        CloseHandle(synchIteration);
-        return -1;
-    }
-
     // creating threads for counting pi-number (just creating and setting threads here)
 
     for (i = 0; i < threadNum; i++)
     {
-        threadsArray[i] = CreateThread (NULL, 0, piCalc1, &(lpParameters[i]), CREATE_SUSPENDED, NULL);
+        threadsArray[i] = CreateThread (NULL, 0, countingPI, &(lpParameters[i]), CREATE_SUSPENDED, NULL);
         lpParameters[i].h = threadsArray[i];
-        if (lpParameters[i].h == NULL)
-        {
-            cout << "Tread creation problem. Last error number is " << GetLastError() << "\n";
-            for (j = 0; j < i; j++)
-            {
-                CloseHandle (lpParameters[j].h);
-            }
-            CloseHandle (synchIteration);
-            CloseHandle (synchSummary);
-            delete lpParameters;
-            delete threadsArray;
-            return -1;
-        }
-        else
-        {
-	        lpParameters[i].localSUM = 0;
-	        lpParameters[i].globalSUM = &localPI;
-	        if (SetThreadPriority (lpParameters[i].h, THREAD_PRIORITY_HIGHEST) == 0)
-	        {
-	            cout << "Problem with changing thread priority. Error: " << GetLastError() << "\n";
-	        }
-        }
+        lpParameters[i].localSUM = 0;
+        lpParameters[i].globalSUM = &localPI;
     }
 
     // 3 -- COUNTING PI-NUMBER
@@ -214,16 +174,9 @@ long double processPI1(int N, int threadNum, int blocksize)
 
     // 4 -- ENDING AND CLEANING
 
-    // error checking
-
-    if (!(WAIT_OBJECT_0 >= waitError || waitError <= WAIT_OBJECT_0 + threadNum - 1)/*или WAIT_TIMEOUT, если отвал по таймеру*/)
-    {
-        cout << "Problem with WaitForMultipleObjects (return = " << waitError << "). Error: " << GetLastError() << endl;
-    }
-
     // "cleaning": closing handles adn cleaning memory
 
-    for (unsigned i = 0; i < threadNum; ++i)
+    for (i = 0; i < threadNum; ++i)
     {
         CloseHandle(threadsArray[i]);
     }
