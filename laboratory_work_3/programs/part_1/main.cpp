@@ -53,7 +53,7 @@ int main (int argc, char **argv)
     int numberOfThreads[] = {1, 2, 4, 8, 12, 16}; // number of threads
     int arraySize = sizeof(numberOfThreads)/sizeof(numberOfThreads[0]); // counting an array size
     long double piNumber; // the %pi number
-    cout << "\nMultiprocessing: C++.\n";
+    cout << "\nMultiprocessing: Win32 API.\n";
 
     for (int i = 0; i < arraySize; i++)
     {
