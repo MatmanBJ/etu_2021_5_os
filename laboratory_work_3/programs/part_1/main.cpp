@@ -53,8 +53,10 @@ int main (int argc, char **argv)
 DWORD WINAPI countingPI(LPVOID lpParam)
 {
     Params1 *par = (Params1*)lpParam;
-    int i;
-    int isuicide = 1;
+    int i; // iterator
+    int isuicide = 1; // indicator
+    long double localResult = 0.0; // local result summary
+
     while (isuicide != -1)
     {
         //==========GetIterBlock==========BEGIN
@@ -94,25 +96,12 @@ DWORD WINAPI countingPI(LPVOID lpParam)
 
         if ((*par).begin <= (*par).end)
         {
-            long double xi;
-            (*par).localSUM = 0;
-
-            long double localResult = 0.0;
+            localResult = 0.0;
 
             for (i = (*par).begin; i <= (*par).end; i++) // formula counting
             {
-                //xi = ((long double)i + 0.5);
-                //xi = xi / (long double)N;
-                //(*par).localSUM = (*par).localSUM + (4 / (1 + xi*xi));
-
-                //*((*par).globalSUM) = *((*par).globalSUM) + (*par).localSUM;
-
                 localResult = localResult + (4 / (1 + (((long double)i + 0.5) / (long double)N)*(((long double)i + 0.5) / (long double)N)));
-
-                //(*par).localSUM = (*par).localSUM + (4 / (1 + (((long double)i + 0.5) / (long double)N)*(((long double)i + 0.5) / (long double)N)));
             }
-
-            list1.push_back(localResult);
 
             // SYNCRONIZING SUMMARY -- BEGIN
 
@@ -122,8 +111,8 @@ DWORD WINAPI countingPI(LPVOID lpParam)
             {
                 cout << "Problem with SELECT WaitForSingleObject (return = " << waitError << "). Error: " << GetLastError() << endl;
             }
-            
-            //*((*par).globalSUM) = *((*par).globalSUM) + (*par).localSUM;
+
+            list1.push_back(localResult); // adding the result to the list
 
             ReleaseMutex (synchSummary);
 
@@ -162,8 +151,6 @@ long double preparingPI(int threadNum)
     {
         threadsArray[i] = CreateThread (NULL, 0, countingPI, &(lpParameters[i]), CREATE_SUSPENDED, NULL);
         lpParameters[i].handle = threadsArray[i];
-        lpParameters[i].localSUM = 0;
-        lpParameters[i].globalSUM = &localPI;
     }
 
     // 3 -- COUNTING PI-NUMBER
@@ -183,10 +170,10 @@ long double preparingPI(int threadNum)
 
     waitError = WaitForMultipleObjects(threadNum, threadsArray, true, INFINITE);
 
+    // making the final result
+
     summaryResult = std::accumulate(std::begin(list1), std::end(list1), 0.0);
     summaryResult = summaryResult / N;
-
-    //localPI = localPI/N;
 
     // ending the timer
     
