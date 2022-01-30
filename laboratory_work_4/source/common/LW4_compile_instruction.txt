@@ -1,0 +1,10 @@
+Part 1:
+
+g++ -static -o .\dispatch.exe dispatch.cpp
+g++ -static -o .\reader.exe reader.cpp
+g++ -static -o .\writer.exe writer.cpp
+
+Part 2:
+
+g++ -static -o .\server.exe server.cpp
+g++ -static -o .\client.exe client.cpp
