@@ -2,7 +2,7 @@
 
 Program:
 
-Saint-Petersburg ETU OS laboratory work 3 part 1
+Saint-Petersburg ETU OS laboratory work 4 part 1
 
 Author:
 
@@ -24,6 +24,8 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 
 using namespace std;
 
+// ---------- CONSTANTS DECLARATION ----------
+
 const size_t PAGE_NUM = 20;
 const size_t N_R = 10;
 const size_t N_W = 10;
@@ -33,100 +35,140 @@ const string FILE_NAME("lab4_FILE");
 const string MAP_NAME("lab4_FILEMAPPING");
 const string LOG_MUTEX_NAME("lab4_LOG_MUTEX");
 const string IO_MUTEX_NAME("lab4_IO_MUTEX");
-
 const size_t MAT_FILE_SIZE_BLOCK = N_TIMES*3*2*sizeof(size_t);
 
-DWORD getPageSize();
+// ---------- FUNCTION PROTOTYPES ----------
 
 char* parse4Env(string s_id, string s_matshift);
 
+// ---------- MAIN ----------
+
 int main()
 {
-    const DWORD PAGE_SIZE = getPageSize();
+    size_t li = 0;
+    size_t MATSHIfT = 0;
+    char* envs[N_R + N_W];
+	string buffS;
+    HANDLE prs_rw[N_R + N_W];
+    HANDLE ths_rw[N_R + N_W];
 
-    string buffS;
+	// Getting page size
 
-    HANDLE hFile = CreateFileA(FILE_NAME.c_str(), GENERIC_WRITE | GENERIC_READ, 0, NULL, CREATE_ALWAYS, 0, NULL);
-    
-    if(hFile == INVALID_HANDLE_VALUE)
+	SYSTEM_INFO temporarySystemInfo; // temporary item
+    GetSystemInfo(&temporarySystemInfo); // getting system info
+    const DWORD PAGE_SIZE = temporarySystemInfo.dwPageSize; // page size getting from system info
+
+    // Creating base file, which will be mapped
+
+    HANDLE hBasicFile = CreateFileA(FILE_NAME.c_str(), GENERIC_WRITE | GENERIC_READ, 0, NULL, CREATE_ALWAYS, 0, NULL);
+    if (hBasicFile == INVALID_HANDLE_VALUE) // check, if it's wrong value
     {
-        cout << "Problem with create file: \"" << FILE_NAME << "\" (error " << GetLastError() << "). " << endl;
+        cout << "Basic file hasn't been created (something wrong). Last error code: " << GetLastError() << ".\n";
         return GetLastError();
     }
-    cout << "* CreateFileA - OK" << endl;
-
-    SetFilePointer(hFile, PAGE_SIZE * PAGE_NUM, 0, FILE_BEGIN);
-    SetEndOfFile(hFile);
-
-    HANDLE hMap = CreateFileMappingA(hFile, NULL, PAGE_READWRITE, 0, 0, MAP_NAME.c_str());
-    if(hMap == NULL)
+    else // successful creation
     {
-        cout << "Problem in CreateFileMapping. Error: " << GetLastError() << endl;
-        CloseHandle(hFile);
+    	cout << "Basic file has been created successfully!\n";
+    }
+
+    SetFilePointer(hBasicFile, PAGE_SIZE * PAGE_NUM, 0, FILE_BEGIN);
+    SetEndOfFile(hBasicFile);
+
+    // Making mapped file from basic file
+
+    HANDLE hMappedFile = CreateFileMappingA(hBasicFile, NULL, PAGE_READWRITE, 0, 0, MAP_NAME.c_str());
+    if (hMappedFile == NULL) // check, if it's wrong value
+    {
+        cout << "Hasn't been maked mapped file from basic file (something wrong). Last error code: " << GetLastError() << ".\n";
+        CloseHandle(hBasicFile); // closing successfully created file handle (see previous if/else)
         return GetLastError();
     }
-    cout << "* CreateFileMapping - OK" << endl;
+    else if (GetLastError() == ERROR_ALREADY_EXISTS) // check, if it's "existing" value
+    {
+        cout << "Hasn't been maked mapped file from basic file (already exists). Last error code: " << GetLastError() << ".\n";
+        CloseHandle(hBasicFile); // closing successfully created file handle (see previous if/else)
+        return GetLastError();
+    }
+    else // successful making
+    {
+    	cout << "Has been maked mapped file from basic file successfully!\n";
+    }
+
+    // Creating mutex for logging
 
     HANDLE logMutex = CreateMutexA(NULL, FALSE, LOG_MUTEX_NAME.c_str());
-    if(logMutex == NULL)
+    if (logMutex == NULL) // check, if it's wrong value
     {
-        cout << "Problem with creating logMutex. Error: " << GetLastError() << endl;
-        //too much close and free=/
+        cout << "Hasn't been created mutex for logging file (something wrong). Last error code: " << GetLastError() << ".\n";
         return GetLastError();
     }
+    else if (GetLastError() == ERROR_ALREADY_EXISTS) // check, if it's "existing" value
+    {
+    	cout << "Hasn't been created mutex for logging file (already exists). Last error code: " << GetLastError() << ".\n";
+    	return GetLastError();
+    }
+    else
+    {
+    	cout << "Has been created mutex for logging file successfullt!\n";
+    }
+
+    // Creating mutexes for all of the pages
+
+    // !!!!!
+    // NEED TO REWRITE CONSTANT AND ALL THE NAMES
+
     HANDLE io_mutexs[PAGE_NUM];
-    for(size_t i = 0; i < PAGE_NUM; ++i)
+    for (size_t i = 0; i < PAGE_NUM; i++)
     {
         buffS = IO_MUTEX_NAME + std::to_string(i);
         io_mutexs[i] = CreateMutexA(NULL, FALSE, buffS.c_str());
-        if(io_mutexs[i] == NULL)
+        if (io_mutexs[i] == NULL)
         {
-            cout << "Problem with creating io_mutexs " << i << ". Error: " << GetLastError() << endl;
-            //too much close and free=/
+            cout << "Hasn't been created mutex for input/output (something wrong). Last error code: " << GetLastError() << ".\n";
             return GetLastError();
+        }
+        else if (GetLastError() == ERROR_ALREADY_EXISTS) // check, if it's "existing" value
+        {
+        	cout << "Hasn't been created mutex for input/output (already exists). Last error code: " << GetLastError() << ".\n";
+        	return GetLastError();
         }
     }
 
-    char* envs[N_R + N_W];
-    
-    HANDLE prs_rw[N_R + N_W];
-    HANDLE ths_rw[N_R + N_W];
-    size_t li = 0;
-    size_t MATSHIfT = 0;
+    // Starting writer processes
 
-    for (size_t i = 0; i < N_R; ++i, ++li, MATSHIfT+=(MAT_FILE_SIZE_BLOCK/sizeof(size_t)))
+    for (size_t i = 0; i < N_R; i++, li++, MATSHIfT+=(MAT_FILE_SIZE_BLOCK/sizeof(size_t)))
     {
         STARTUPINFOA si;
-        ZeroMemory(&si, sizeof(STARTUPINFOA));
+        SecureZeroMemory(&si, sizeof(STARTUPINFOA)); // "ZeroMemory" macro is unsecured!!!
         si.cb = sizeof(STARTUPINFOA);
         PROCESS_INFORMATION pi;
-
-        //cout << "writer " << i + 1 << " not commited. " << endl;
 
         string s_id = "PR_ID=" + std::to_string(i);
         string smatshift = "matshift=" + std::to_string(MATSHIfT);
         envs[li] = parse4Env(s_id, smatshift);
 
         WINBOOL resCreate = CreateProcessA("writer.exe", NULL, NULL, NULL, FALSE, 0, envs[li], NULL, &si, &pi);
-        if(resCreate)
+        if (resCreate == true)
+        {
             cout << "writer " << i << " started. " << endl;
+        }
         else
         {
             cout << "Problem with creating writer " << i << " process (error " << GetLastError() << "). " << endl;
-            //too much close and free=/
             return GetLastError();
         }
 
         prs_rw[li] = pi.hProcess;
         ths_rw[li] = pi.hThread;
-        Sleep(3);
     }
 
-    for (size_t i = 0; i < N_W; ++i, ++li, MATSHIfT+=(MAT_FILE_SIZE_BLOCK/sizeof(size_t)))
+    // Starting reader processes
+
+    for (size_t i = 0; i < N_W; i++, li++, MATSHIfT+=(MAT_FILE_SIZE_BLOCK/sizeof(size_t)))
     {
         STARTUPINFOA si;
-        ZeroMemory(&si, sizeof(STARTUPINFOA));
-        si.cb = sizeof(STARTUPINFOA);
+        SecureZeroMemory(&si, sizeof (STARTUPINFOA)); // "ZeroMemory" macro is unsecured!!!
+        si.cb = sizeof (STARTUPINFOA);
         PROCESS_INFORMATION pi;
 
         string s_id = "PR_ID=" + std::to_string(i);
@@ -134,40 +176,45 @@ int main()
         envs[li] = parse4Env(s_id, smatshift);
 
         WINBOOL resCreate = CreateProcessA("reader.exe", NULL, NULL, NULL, FALSE, 0, envs[li], NULL, &si, &pi);
-        if(resCreate)
+        if (resCreate)
+        {
             cout << "reader " << i << " started. " << endl;
+        }
         else
         {
             cout << "Problem with creating reader " << i << " process (error " << GetLastError() << "). " << endl;
-            //too much close and free=/
             return GetLastError();
         }
 
         prs_rw[li] = pi.hProcess;
         ths_rw[li] = pi.hThread;
-        Sleep(3);
     }
 
+    // Waitig for all process finish
+
     WaitForMultipleObjects(N_R + N_W, prs_rw, TRUE, INFINITE);
-    // if(неудачно), то сообщить и выйти... //too much close and free=/
 
-    cout << "All process finished. " << endl;
+    cout << "All process finished.\n";
 
-    //===============Cleaning===============
-    for(size_t i = 0; i < N_R + N_W; ++i)
+    // Cleaning and freeing
+
+    for(size_t i = 0; i < N_R + N_W; i++)
     {
         CloseHandle(prs_rw[i]);
         CloseHandle(ths_rw[i]);
     }
-    for(size_t i = 0; i < PAGE_NUM; ++i)
+    for(size_t i = 0; i < PAGE_NUM; i++)
+    {
         CloseHandle(io_mutexs[i]);
+    }
     CloseHandle(logMutex);
-    CloseHandle(hMap);
-    CloseHandle(hFile);
-    //UnmapViewOfFile(map);
-    //===============Cleaning===============
+    CloseHandle(hMappedFile);
+    CloseHandle(hBasicFile);
 
-    cout << "=====done!=====" << endl;
+    // End
+
+    cout << "End.\n";
+
     return 0;
 }
 
@@ -190,37 +237,34 @@ char* parse4Env(string s_id, string s_matshift)
                                     сделать водопровод. Пайпинг (но это lab 4 work 2).
                                 */
 
-    size_t n = s_id.length()+1 + s_matshift.length()+1 + real_npath+1 + 1;
+    size_t n = s_id.length() + 1 + s_matshift.length() + 1 + real_npath + 1 + 1;
     char *res = (char*)malloc(n*sizeof(char));
 
     size_t i, j;
-    for(i = 0, j = 0; j < s_id.length(); ++j, ++i)
+    for(i = 0, j = 0; j < s_id.length(); j++, i++)
+    {
         res[i] = s_id[j];
+    }
     res[i++] = '\0';
 
-    for(j = 0; j < s_matshift.length(); ++j, ++i)
+    for(j = 0; j < s_matshift.length(); j++, i++)
+    {
         res[i] = s_matshift[j];
+    }
     res[i++] = '\0';
 
-    res[i++] = 'P';res[i++] = 'a';res[i++] = 't';res[i++] = 'h';res[i++] = '=';
-    for(j = 0; j < real_npath; ++j, ++i)
+    res[i++] = 'P';
+    res[i++] = 'a';
+    res[i++] = 't';
+    res[i++] = 'h';
+    res[i++] = '=';
+    for(j = 0; j < real_npath; j++, i++)
+    {
         res[i] = path[j];
+    }
     res[i++] = '\0';
 
     res[i++] = '\0';
-
-    /*for(i = 0; i < n; ++i)
-        if(res[i] == '\0')
-            cout << 0;
-        else
-            cout << res[i];*/
 
     return res;
-}
-
-DWORD getPageSize()
-{
-    SYSTEM_INFO sysInfo;
-    GetSystemInfo(&sysInfo);
-    return sysInfo.dwPageSize;
 }

@@ -2,7 +2,7 @@
 
 Program:
 
-Saint-Petersburg ETU OS laboratory work 3 part 1
+Saint-Petersburg ETU OS laboratory work 4 part 1
 
 Author:
 
@@ -86,15 +86,18 @@ class Logger
     void flush();
 };
 
-DWORD getPageSize();
-
 int main()
 {
     string buffS;
     const size_t nBuffC = 256;
     char buffC[nBuffC];
     Logger logger(LOGFILE);
-    const DWORD PAGE_SIZE = getPageSize();
+
+    // Getting page size
+
+    SYSTEM_INFO temporarySystemInfo; // temporary item
+    GetSystemInfo(&temporarySystemInfo); // getting system info
+    const DWORD PAGE_SIZE = temporarySystemInfo.dwPageSize; // page size getting from system info
 
     HANDLE hMap = OpenFileMappingA(FILE_MAP_ALL_ACCESS, FALSE, MAP_NAME.c_str());
     if(hMap == NULL)
@@ -220,13 +223,6 @@ int main()
     //===============Cleaning===============
 
     return 0;
-}
-
-DWORD getPageSize()
-{
-    SYSTEM_INFO sysInfo;
-    GetSystemInfo(&sysInfo);
-    return sysInfo.dwPageSize;
 }
 
 /*
