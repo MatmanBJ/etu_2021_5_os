@@ -30,6 +30,7 @@ int main()
     int menuChoose = 1; // choosed value
     HANDLE hPipe = INVALID_HANDLE_VALUE; // default value
     HANDLE hEvent = NULL; // default value
+    cout << "---------- SERVER APP ----------\n";
 
     while (menuChoose != 0)
     {
@@ -41,10 +42,9 @@ int main()
             cout << "1 -- Create the named pipe (only one)\n";
             cout << "2 -- Wait for client connect to pipe\n";
             cout << "3 -- Disconnect client from pipe\n";
-            cout << "4 -- Create the event\n";
+            cout << "4 -- Close the named pipe (only one)\n";
             cout << "5 -- Write to pipe\n";
-            cout << "6 -- Close the named pipe (only one)\n";
-            cout << "7 -- Delete the event\n";
+            cout << "6 -- Create the event\n";
             cout << "Please, input item you choosed: ";
             cin >> menuChoose;
             if (menuChoose < 0 || menuChoose > 7)
@@ -108,22 +108,13 @@ int main()
                     cout << "No connection! Last error code is " << GetLastError() << "\n";
                 }
                 break;
-            case 4: // Create the event
-                if (hEvent == NULL)
+            case 4: // Close the named pipe (only one)
+                if (hPipe != INVALID_HANDLE_VALUE)
                 {
-                    hEvent = CreateEvent(NULL, false, false, NULL);
-                    if(hEvent != NULL)
-                    {
-                        cout << "Event created!\n";
-                    }
-                    else
-                    {
-                        cout << "Event isn't created! Last error code is " << GetLastError() << "\n";
-                    }
-                }
-                else
-                {
-                    cout << "Pipe is already created.\n";
+                    DisconnectNamedPipe(hPipe);
+                    CloseHandle(hPipe);
+                    hPipe = INVALID_HANDLE_VALUE;
+                    cout << "Pipe closed!\n";
                 }
                 break;
             case 5: // Write to pipe
@@ -159,21 +150,22 @@ int main()
                     }
                 }
                 break;
-            case 6: // Close the named pipe (only one)
-                if (hPipe != INVALID_HANDLE_VALUE)
+            case 6: // Create the event
+                if (hEvent == NULL)
                 {
-                    DisconnectNamedPipe(hPipe);
-                    CloseHandle(hPipe);
-                    hPipe = INVALID_HANDLE_VALUE;
-                    cout << "Pipe closed!\n";
+                    hEvent = CreateEvent(NULL, false, false, NULL);
+                    if(hEvent != NULL)
+                    {
+                        cout << "Event created!\n";
+                    }
+                    else
+                    {
+                        cout << "Event isn't created! Last error code is " << GetLastError() << "\n";
+                    }
                 }
-                break;
-            case 7: // Delete the event
-                if (hEvent != NULL)
+                else
                 {
-                    CloseHandle(hEvent);
-                    hEvent = NULL;
-                    cout << "Event deleted!\n";
+                    cout << "Pipe is already created.\n";
                 }
                 break;
         }

@@ -29,6 +29,8 @@ int main()
 {
     int menuChoose = 1;
     HANDLE hPipe = INVALID_HANDLE_VALUE;
+    cout << "---------- CLIENT APP ----------\n";
+
     while (menuChoose != 0)
     {
         menuChoose = -1;
