@@ -96,8 +96,8 @@ int main()
 
     // Creating mutex for logging
 
-    HANDLE logMutex = CreateMutexA(NULL, FALSE, LOG_MUTEX_NAME.c_str());
-    if (logMutex == NULL) // check, if it's wrong value
+    HANDLE mLogFile = CreateMutexA(NULL, FALSE, LOG_MUTEX_NAME.c_str());
+    if (mLogFile == NULL) // check, if it's wrong value
     {
         cout << "Hasn't been created mutex for logging file (something wrong). Last error code: " << GetLastError() << ".\n";
         return GetLastError();
@@ -117,12 +117,12 @@ int main()
     // !!!!!
     // NEED TO REWRITE CONSTANT AND ALL THE NAMES
 
-    HANDLE io_mutexs[PAGE_NUM];
+    HANDLE mInputOutput[PAGE_NUM];
     for (size_t i = 0; i < PAGE_NUM; i++)
     {
         buffS = IO_MUTEX_NAME + std::to_string(i);
-        io_mutexs[i] = CreateMutexA(NULL, FALSE, buffS.c_str());
-        if (io_mutexs[i] == NULL)
+        mInputOutput[i] = CreateMutexA(NULL, FALSE, buffS.c_str());
+        if (mInputOutput[i] == NULL)
         {
             cout << "Hasn't been created mutex for input/output (something wrong). Last error code: " << GetLastError() << ".\n";
             return GetLastError();
@@ -205,9 +205,9 @@ int main()
     }
     for(size_t i = 0; i < PAGE_NUM; i++)
     {
-        CloseHandle(io_mutexs[i]);
+        CloseHandle(mInputOutput[i]);
     }
-    CloseHandle(logMutex);
+    CloseHandle(mLogFile);
     CloseHandle(hMappedFile);
     CloseHandle(hBasicFile);
 

@@ -34,15 +34,15 @@ const size_t PAGE_NUM = 20;
 const size_t N_R = 10;
 const size_t N_W = 10;
 const size_t N_TIMES = 12;
-const string LOGFILE("loggerino.txt");
+const string LOGFILENAME("loggerino.txt");
 const string FILE_NAME("lab4_FILE");
 const string MAP_NAME("lab4_FILEMAPPING");
 const string LOG_MUTEX_NAME("lab4_LOG_MUTEX");
 const string IO_MUTEX_NAME("lab4_IO_MUTEX");
 
-class Logger
+class LogFile
 {
-    private:
+private:
     ostringstream *ss;
     fstream file;
     #if IOcount == 1
@@ -50,38 +50,12 @@ class Logger
     #else
     clock_t startTime;
     #endif
-
     string fileName;
-
-
-    public:
-    Logger(string fileName);
-    ~Logger();
-
-    size_t getTime()
-    {
-        size_t milisecFromStart = 0;
-        #if IOcount == 1
-        time_t endTime;
-        time(&endTime);
-        milisecFromStart = (size_t)(difftime(endTime, startTime) * 1000 + 0.5);
-        #else
-        clock_t endTime = clock();
-        milisecFromStart = (size_t)(((double)(endTime - startTime) / CLOCKS_PER_SEC) * 1000 + 0.5);
-        #endif
-        return milisecFromStart;
-    }
-
+public:
+    LogFile(string fileName);
+    ~LogFile();
+    size_t getTime();
     void log(string msg);
-    /*
-    type:
-    1 - начало  ожидания,  
-    2 - запись  или  чтение, 
-    3 - переход  к освобождению
-    r_or_w:
-    true = reader
-    flase = writer
-    */
     void log(int type, size_t id, long long pageNum, bool r_or_w, int what);
     void flush();
 };
@@ -91,7 +65,7 @@ int main()
     string buffS;
     const size_t nBuffC = 256;
     char buffC[nBuffC];
-    Logger logger(LOGFILE);
+    LogFile logFile(LOGFILENAME);
 
     // Getting page size
 
@@ -99,42 +73,47 @@ int main()
     GetSystemInfo(&temporarySystemInfo); // getting system info
     const DWORD PAGE_SIZE = temporarySystemInfo.dwPageSize; // page size getting from system info
 
-    HANDLE hMap = OpenFileMappingA(FILE_MAP_ALL_ACCESS, FALSE, MAP_NAME.c_str());
-    if(hMap == NULL)
+    HANDLE hMappedFile = OpenFileMappingA(FILE_MAP_ALL_ACCESS, FALSE, MAP_NAME.c_str());
+    if (hMappedFile == NULL) // error check
     {
-        logger.log("(reader) Problem in OpenFileMappingA. Error: " + std::to_string(GetLastError())); // RW CHANGE = {reader, writer}
-        logger.flush();
+        logFile.log("READER: Something wrong with opening mapped file. Last error code: " + std::to_string(GetLastError())); // RW CHANGE = {reader, writer}
+        logFile.flush();
         return GetLastError();
     }
 
-    HANDLE logMutex = OpenMutexA(MUTEX_ALL_ACCESS, FALSE, LOG_MUTEX_NAME.c_str());
-    if(logMutex == NULL)
+    // Opening mutex for the log file
+
+    HANDLE mLogFile = OpenMutexA(MUTEX_ALL_ACCESS, FALSE, LOG_MUTEX_NAME.c_str());
+    if (mLogFile == NULL) // error check
     {
-        logger.log("(reader) Problem with openning logMutex. Error: " + std::to_string(GetLastError())); // RW CHANGE = {reader, writer}
-        logger.flush();
-        //too much close and free=/
+        logFile.log("READER: Something wrong with opening mutex for logging file. Last error code: " + std::to_string(GetLastError())); // RW CHANGE = {reader, writer}
+        logFile.flush();
         return GetLastError();
     }
-    HANDLE io_mutexs[PAGE_NUM];
+
+    // Getting all mutexes for the input and output
+
+    HANDLE mInputOutput[PAGE_NUM];
     for (size_t i = 0; i < PAGE_NUM; ++i)
     {
         buffS = IO_MUTEX_NAME + std::to_string(i);
 
-        io_mutexs[i] = OpenMutexA(MUTEX_ALL_ACCESS, FALSE, buffS.c_str());
-        if(io_mutexs[i] == NULL)
+        mInputOutput[i] = OpenMutexA(MUTEX_ALL_ACCESS, FALSE, buffS.c_str());
+        if (mInputOutput[i] == NULL) // error check
         {
-            logger.log("(reader) Problem with openning io_mutexs " + std::to_string(i) +  ". Error: " + std::to_string(GetLastError())); // RW CHANGE = {reader, writer}
-            logger.flush();
-            //too much close and free=/
+            logFile.log("READER: Something wrong with opening mutex for input/output №" + std::to_string(i) +  ". Error: " + std::to_string(GetLastError())); // RW CHANGE = {reader, writer}
+            logFile.flush();
             return GetLastError();
         }
     }
-    void* addr = MapViewOfFile(hMap, FILE_MAP_READ, 0, 0, 0); // RW CHANGE = {FILE_MAP_READ, FILE_MAP_WRITE}
-    if(addr == NULL)
+
+    // View mapping file
+
+    void* addr = MapViewOfFile(hMappedFile, FILE_MAP_READ, 0, 0, 0);
+    if (addr == NULL) // error check
     {
-        logger.log("(reader) Problem in MapViewOfFile. Error: " + std::to_string(GetLastError())); // RW CHANGE = {reader, writer}
-        logger.flush();
-        //too much close and free=/
+        logFile.log("READER: Something wrong with viewing mapped file. Last error code: " + std::to_string(GetLastError()));
+        logFile.flush();
         return GetLastError();
     }
 
@@ -146,10 +125,7 @@ int main()
     //===============ENV_INIT===============
 
     //===============LOG_START===============
-    //WaitForSingleObject(logMutex, INFINITE);
-    logger.log("reader " + std::to_string(prID) + " started. "); // RW CHANGE = {reader, writer}
-    //logger.flush();
-    //ReleaseMutex(logMutex);
+    logFile.log("reader " + std::to_string(prID) + " started. "); // RW CHANGE = {reader, writer}
     //===============LOG_START===============
 
     size_t page_i;
@@ -165,17 +141,14 @@ int main()
         #endif
 
         //===============LOG_BEGIN_WAIT===============
-        //WaitForSingleObject(logMutex, INFINITE);
-        logger.log(1, prID, page_i, true, -1); // RW CHANGE = {true, false}
-        //logger.flush();
-        //ReleaseMutex(logMutex);
+        logFile.log(1, prID, page_i, true, -1); // RW CHANGE = {true, false}
         //===============LOG_BEGIN_WAIT===============
 
         #if RND_CHOOSE == 1
-        WaitForSingleObject(io_mutexs[page_i], INFINITE);
+        WaitForSingleObject(mInputOutput[page_i], INFINITE);
         //Если неудачно, то залозинить это и выйти... //too much close and free=/
         #else
-        page_i = WaitForMultipleObjects(PAGE_NUM, io_mutexs, FALSE, INFINITE);
+        page_i = WaitForMultipleObjects(PAGE_NUM, mInputOutput, FALSE, INFINITE);
         //Если неудачно, то залозинить это и выйти... //too much close and free=/
         #endif
 
@@ -183,46 +156,56 @@ int main()
                                                                    unsigned mem_src = rand() % 256; *((unsigned*)((char*)addr + PAGE_SIZE*page_i)) = mem_src; }*/
 
         //===============LOG_READING/WRITING===============
-        //WaitForSingleObject(logMutex, INFINITE);
-        logger.log(2, prID, page_i, true, mem_src); // RW CHANGE = {true, false}
-        //logger.flush();
-        //ReleaseMutex(logMutex);
+        logFile.log(2, prID, page_i, true, mem_src); // RW CHANGE = {true, false}
         //===============LOG_READING/WRITING===============
         pause = (rand() % 1001) + 500;
 
         Sleep((DWORD)pause);
 
         //===============LOG_RELEASING===============
-        //WaitForSingleObject(logMutex, INFINITE);
-        logger.log(3, prID, page_i, true, -1); // RW CHANGE = {true, false}
-        //logger.flush();
-        //ReleaseMutex(logMutex);
+        logFile.log(3, prID, page_i, true, -1); // RW CHANGE = {true, false}
         //===============LOG_RELEASING===============
 
-        ReleaseMutex(io_mutexs[page_i]);
+        ReleaseMutex(mInputOutput[page_i]);
 
         Sleep(10);
     }
     //===============LOG_FINISHED===============
-    WaitForSingleObject(logMutex, INFINITE);
-    logger.log("reader " + std::to_string(prID) + " finished. "); // RW CHANGE = {reader, writer}
-    logger.flush();
-    ReleaseMutex(logMutex);
+    WaitForSingleObject(mLogFile, INFINITE);
+    logFile.log("reader " + std::to_string(prID) + " finished. "); // RW CHANGE = {reader, writer}
+    logFile.flush();
+    ReleaseMutex(mLogFile);
     //===============LOG_FINISHED===============
 
     VirtualUnlock(addr, PAGE_SIZE * PAGE_NUM);
 
     //===============Cleaning===============
     for(size_t i = 0; i < PAGE_NUM; ++i)
-        CloseHandle(io_mutexs[i]);
-    CloseHandle(logMutex);
+    {
+        CloseHandle(mInputOutput[i]);
+    }
+    CloseHandle(mLogFile);
 
-    CloseHandle(hMap);
+    CloseHandle(hMappedFile);
     UnmapViewOfFile(addr);
 
     //===============Cleaning===============
 
     return 0;
+}
+
+size_t LogFile::getTime()
+{
+    size_t milisecFromStart = 0;
+    #if IOcount == 1
+    time_t endTime;
+    time(&endTime);
+    milisecFromStart = (size_t)(difftime(endTime, startTime) * 1000 + 0.5);
+    #else
+    clock_t endTime = clock();
+    milisecFromStart = (size_t)(((double)(endTime - startTime) / CLOCKS_PER_SEC) * 1000 + 0.5);
+    #endif
+    return milisecFromStart;
 }
 
 /*
@@ -234,7 +217,7 @@ r_or_w:
 true = reader
 flase = writer
 */
-void Logger::log(int type, size_t id, long long pageNum, bool r_or_w, int what = -1)
+void LogFile::log(int type, size_t id, long long pageNum, bool r_or_w, int what = -1)
 {
     string reason;
     switch(type)
@@ -260,9 +243,13 @@ void Logger::log(int type, size_t id, long long pageNum, bool r_or_w, int what =
 
     string rw = "";
     if(r_or_w)
+    {
         rw = "reader";
+    }
     else
+    {
         rw = "writer";
+    }
 
     size_t milisecFromStart = getTime();
     string time = std::to_string(milisecFromStart);
@@ -274,19 +261,19 @@ void Logger::log(int type, size_t id, long long pageNum, bool r_or_w, int what =
     log(  rw + " " + ID + " " + reason + swhat + " page " + page + " (time = " + time + " ms). " );
 }
 
-void Logger::log(string msg)
+void LogFile::log(string msg)
 {
     (*ss) << msg << endl;
 }
 
-void Logger::flush()
+void LogFile::flush()
 {
     file << (*ss).str() << endl;
     file.flush();
     (*ss).str("");
 }
 
-Logger::Logger(string fileName)
+LogFile::LogFile(string fileName)
 {
     this->fileName = fileName;
     ss = new ostringstream();
@@ -298,7 +285,7 @@ Logger::Logger(string fileName)
     #endif
 }
 
-Logger::~Logger()
+LogFile::~LogFile()
 {
     delete ss;
     file.close();
