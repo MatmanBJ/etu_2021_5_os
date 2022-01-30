@@ -24,6 +24,9 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 using namespace std;
 
 const size_t maxBufferSize = 256;
+char localMessage[maxBufferSize];
+
+void endRoutine (DWORD dwE, DWORD dwBT, LPOVERLAPPED lpO);
 
 int main()
 {
@@ -52,7 +55,7 @@ int main()
             }
         }
         char localPipeName[maxBufferSize];
-        char localMessage[maxBufferSize];
+        //char localMessage[maxBufferSize];
         switch(menuChoose)
         {
             case 1:
@@ -76,15 +79,9 @@ int main()
                 OVERLAPPED overlapped;
                 overlapped.Offset = 0UL;
                 overlapped.OffsetHigh = 0UL;
-                if (ReadFileEx(hPipe, localMessage, sizeof(localMessage), &overlapped, NULL) == false) // NULL?
-                {
-                    cout << "Something wrong! Error code is " << GetLastError() << "\n";
-                }
-                else
-                {
-                    //SleepEx(INFINITE, true);
-                    cout << "Received message:\n" << localMessage << '\n';
-                }
+				cout << "Waiting for message ... [if no from server, the program will wait]\n";
+				ReadFileEx(hPipe, localMessage, sizeof(localMessage), &overlapped, &endRoutine); // handle / place for message / size of the message / end function
+                SleepEx(INFINITE, true);
                 break;
         }
     }
@@ -96,4 +93,10 @@ int main()
         CloseHandle(hPipe);
     }
     return 0;
+}
+
+void endRoutine (DWORD dwE, DWORD dwBT, LPOVERLAPPED lpO)
+{
+    cout << localMessage << "\n";
+	cout << "Message received!\n";
 }
