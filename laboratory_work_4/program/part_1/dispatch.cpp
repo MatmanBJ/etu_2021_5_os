@@ -27,10 +27,12 @@ using namespace std;
 // ---------- CONSTANTS DECLARATION ----------
 
 const size_t PAGE_NUMBER = 9 + 3 + 0 + 8 + 2 + 4 - 9;
-const size_t READER_NUMBER = 9;
-const size_t WRITER_NUMBER = 9;
+const size_t READER_NUMBER = 18;
+const size_t WRITER_NUMBER = 18;
 const string FILE_NAME("basicfile");
 const string MAP_NAME("mappingfile");
+//const string FILE_LOG_NAME("basiclogfile");
+//const string MAP_LOG_NAME("mappinglogfile");
 const string LOG_MUTEX_NAME("logmutexfile");
 const string IO_MUTEX_NAME("iomutexfile");
 
@@ -84,6 +86,44 @@ int main()
     {
     	cout << "Has been maked mapped file from basic file successfully!\n";
     }
+
+    /*
+    // [MATLAB] Creating base file, which will be mapped
+
+    HANDLE hBasicLogFile = CreateFileA(FILE_LOG_NAME.c_str(), GENERIC_WRITE | GENERIC_READ, 0, NULL, CREATE_ALWAYS, 0, NULL);
+    if (hBasicLogFile == INVALID_HANDLE_VALUE) // check, if it's wrong value
+    {
+        cout << "Basic file hasn't been created (something wrong). Last error code: " << GetLastError() << ".\n";
+        return GetLastError();
+    }
+    else // successful creation
+    {
+    	cout << "Basic file has been created successfully!\n";
+    }
+
+    SetFilePointer(hBasicLogFile, PAGE_SIZE * PAGE_NUMBER, 0, FILE_BEGIN);
+    SetEndOfFile(hBasicLogFile);
+
+    // [MATLAB] Making mapped file from basic file
+
+    HANDLE hMappedLogFile = CreateFileMappingA(hBasicLogFile, NULL, PAGE_READWRITE, 0, 0, MAP_LOG_NAME.c_str());
+    if (hMappedLogFile == NULL) // check, if it's wrong value
+    {
+        cout << "Hasn't been maked mapped file from basic file (something wrong). Last error code: " << GetLastError() << ".\n";
+        CloseHandle(hBasicLogFile); // closing successfully created file handle (see previous if/else)
+        return GetLastError();
+    }
+    else if (GetLastError() == ERROR_ALREADY_EXISTS) // check, if it's "existing" value
+    {
+        cout << "Hasn't been maked mapped file from basic file (already exists). Last error code: " << GetLastError() << ".\n";
+        CloseHandle(hBasicLogFile); // closing successfully created file handle (see previous if/else)
+        return GetLastError();
+    }
+    else // successful making
+    {
+    	cout << "Has been maked mapped file from basic file successfully!\n";
+    }
+    */
 
     // Creating mutex for logging
 
@@ -144,6 +184,7 @@ int main()
 
         hProcesses[localCounter] = localInformation.hProcess;
         hThreads[localCounter] = localInformation.hThread;
+        Sleep(2);
     }
 
     // Starting reader processes
@@ -168,6 +209,7 @@ int main()
 
         hProcesses[localCounter] = localInformation.hProcess;
         hThreads[localCounter] = localInformation.hThread;
+        Sleep(2);
     }
 
     // Waitig for all process finish

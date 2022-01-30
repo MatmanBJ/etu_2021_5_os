@@ -29,7 +29,7 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 using namespace std;
 
 const size_t PAGE_NUMBER = 9 + 3 + 0 + 8 + 2 + 4 - 9;
-const size_t N_TIMES = 12;
+const size_t WRITE_TIMES_NUMBER = 2;
 const string LOGFILENAME("logfile.txt");
 const string FILE_NAME("basicfile");
 const string MAP_NAME("mappingfile");
@@ -125,12 +125,12 @@ int main()
     // Blocking pages in RAM with VirtualLock
 
     VirtualLock(aMappedFile, PAGE_SIZE * PAGE_NUMBER);
-    for(size_t gi = 0; gi < N_TIMES; gi++)
+    for(size_t gi = 0; gi < WRITE_TIMES_NUMBER; gi++)
     {
         // Page choosing
 
-        processPage = rand() % PAGE_NUMBER; // rand
-        //processPage = -1; // 1st free
+        //processPage = rand() % PAGE_NUMBER; // rand
+        processPage = -1; // 1st free
 
         // LogFile starting
 
@@ -138,8 +138,8 @@ int main()
 
         // Catching mutex
 
-        WaitForSingleObject(mInputOutput[processPage], INFINITE); // rand
-        //processPage = WaitForMultipleObjects(PAGE_NUMBER, mInputOutput, FALSE, INFINITE); // 1st free
+        //WaitForSingleObject(mInputOutput[processPage], INFINITE); // rand
+        processPage = WaitForMultipleObjects(PAGE_NUMBER, mInputOutput, FALSE, INFINITE); // 1st free
 
         // Choosing random place
 
@@ -210,40 +210,42 @@ void LogFile::log(int type, size_t id, long long pageNum, bool isRead, int what 
     switch (type)
     {
         case 1:
-            localState = "begin wait";
+            localState = "BW";
             break;
         case 2:
             if (isRead == true)
             {
-                localState = "reading";
+                localState = "RD";
             }
             else
             {
-                localState = "writing";
+                localState = "WR";
             }
             break;
         case 3:
-            localState = "releasing";
+            localState = "RL";
             break;
         default:
-            localState = "failed";
+            localState = "FL";
             break;
     }
 
     if (isRead == true)
     {
-        localType = "reader";
+        localType = "R";
     }
     else
     {
-        localType = "writer";
+        localType = "W";
     }
 
     size_t milisecFromStart = getTime(); // checking the time
     string time = std::to_string(milisecFromStart); // translating the time to the string
-    string page = pageNum == -1 ? string("the first one released") : std::to_string (pageNum);
+    //string page = pageNum == -1 ? string("the first one released") : std::to_string (pageNum);
+    string page = pageNum == -1 ? string("-1") : std::to_string(pageNum);
     string swhat = what == -1 ? "" : " byte " + std::to_string(what) + (isRead == true ? " from" : " to");
-    log(localType + " " + ID + " " + localState + swhat + " page " + page + " (time = " + time + " ms). ");
+    //log(localType + " " + ID + " " + localState + swhat + " page " + page + " (time = " + time + " ms). ");
+    log(ID + " " + localType + " " + localState + " " + page + " " + time);
 }
 
 void LogFile::log (string localMessage) // logging the message
