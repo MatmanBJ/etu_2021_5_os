@@ -26,45 +26,44 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 #include <sstream>
 #include <time.h>
 
-#define IOcount 0
-
 using namespace std;
 
-const size_t PAGE_NUM = 20;
-const size_t N_R = 10;
-const size_t N_W = 10;
+const size_t PAGE_NUMBER = 9 + 3 + 0 + 8 + 2 + 4 - 9;
 const size_t N_TIMES = 12;
-const string LOGFILENAME("loggerino.txt");
-const string FILE_NAME("lab4_FILE");
-const string MAP_NAME("lab4_FILEMAPPING");
-const string LOG_MUTEX_NAME("lab4_LOG_MUTEX");
-const string IO_MUTEX_NAME("lab4_IO_MUTEX");
+const string LOGFILENAME("logfile.txt");
+const string FILE_NAME("basicfile");
+const string MAP_NAME("mappingfile");
+const string LOG_MUTEX_NAME("logmutexfile");
+const string IO_MUTEX_NAME("iomutexfile");
+
+// The class for the logging all the time
 
 class LogFile
 {
 private:
-    ostringstream *ss;
-    fstream file;
-    #if IOcount == 1
-    time_t startTime;
-    #else
-    clock_t startTime;
-    #endif
-    string fileName;
+    ostringstream *localStream;
+    fstream file; // file itself
+    //time_t startTime; // iocnt1
+    clock_t startTime; // starting time
+    string fileName; // filename
 public:
     LogFile(string fileName);
     ~LogFile();
     size_t getTime();
-    void log(string msg);
-    void log(int type, size_t id, long long pageNum, bool r_or_w, int what);
+    void log(string localMessage);
+    void log(int type, size_t id, long long pageNum, bool isRead, int what);
     void flush();
 };
 
 int main()
 {
-    string buffS;
-    const size_t nBuffC = 256;
-    char buffC[nBuffC];
+    // Initializing
+
+    const size_t maxCharSize = 256;
+    size_t processID = GetCurrentProcessId();
+    size_t processPage;
+    size_t pause;
+    string localBuffer;
     LogFile logFile(LOGFILENAME);
 
     // Getting page size
@@ -73,35 +72,37 @@ int main()
     GetSystemInfo(&temporarySystemInfo); // getting system info
     const DWORD PAGE_SIZE = temporarySystemInfo.dwPageSize; // page size getting from system info
 
-    HANDLE hMappedFile = OpenFileMappingA(FILE_MAP_ALL_ACCESS, FALSE, MAP_NAME.c_str());
+    // Opening mapped file
+
+    HANDLE hMappedFile = OpenFileMappingA(FILE_MAP_ALL_ACCESS, false, MAP_NAME.c_str());
     if (hMappedFile == NULL) // error check
     {
-        logFile.log("READER: Something wrong with opening mapped file. Last error code: " + std::to_string(GetLastError())); // RW CHANGE = {reader, writer}
+        logFile.log("READER: Something wrong with opening mapped file. Last error code: " + std::to_string(GetLastError()));
         logFile.flush();
         return GetLastError();
     }
 
     // Opening mutex for the log file
 
-    HANDLE mLogFile = OpenMutexA(MUTEX_ALL_ACCESS, FALSE, LOG_MUTEX_NAME.c_str());
+    HANDLE mLogFile = OpenMutexA(MUTEX_ALL_ACCESS, false, LOG_MUTEX_NAME.c_str());
     if (mLogFile == NULL) // error check
     {
-        logFile.log("READER: Something wrong with opening mutex for logging file. Last error code: " + std::to_string(GetLastError())); // RW CHANGE = {reader, writer}
+        logFile.log("READER: Something wrong with opening mutex for logging file. Last error code: " + std::to_string(GetLastError()));
         logFile.flush();
         return GetLastError();
     }
 
     // Getting all mutexes for the input and output
 
-    HANDLE mInputOutput[PAGE_NUM];
-    for (size_t i = 0; i < PAGE_NUM; ++i)
+    HANDLE mInputOutput[PAGE_NUMBER];
+    for (size_t i = 0; i < PAGE_NUMBER; ++i)
     {
-        buffS = IO_MUTEX_NAME + std::to_string(i);
+        localBuffer = IO_MUTEX_NAME + std::to_string(i);
 
-        mInputOutput[i] = OpenMutexA(MUTEX_ALL_ACCESS, FALSE, buffS.c_str());
+        mInputOutput[i] = OpenMutexA(MUTEX_ALL_ACCESS, false, localBuffer.c_str());
         if (mInputOutput[i] == NULL) // error check
         {
-            logFile.log("READER: Something wrong with opening mutex for input/output №" + std::to_string(i) +  ". Error: " + std::to_string(GetLastError())); // RW CHANGE = {reader, writer}
+            logFile.log("READER: Something wrong with opening mutex for input/output number " + std::to_string(i) +  ". Error: " + std::to_string(GetLastError()));
             logFile.flush();
             return GetLastError();
         }
@@ -109,184 +110,162 @@ int main()
 
     // View mapping file
 
-    void* addr = MapViewOfFile(hMappedFile, FILE_MAP_READ, 0, 0, 0);
-    if (addr == NULL) // error check
+    void* aMappedFile = MapViewOfFile(hMappedFile, FILE_MAP_READ, 0, 0, 0); // address of map view of file
+    if (aMappedFile == NULL) // error check
     {
         logFile.log("READER: Something wrong with viewing mapped file. Last error code: " + std::to_string(GetLastError()));
         logFile.flush();
         return GetLastError();
     }
 
-    //===============ENV_INIT===============
-    //DWORD ProccessId = GetCurrentProcessId();
-    GetEnvironmentVariableA("PR_ID", buffC, nBuffC);
-    size_t prID = atoll(buffC);
-    srand(time(NULL) + prID*13);
-    //===============ENV_INIT===============
+    // Logging
 
-    //===============LOG_START===============
-    logFile.log("reader " + std::to_string(prID) + " started. "); // RW CHANGE = {reader, writer}
-    //===============LOG_START===============
+    logFile.log("reader " + std::to_string(processID) + " started. ");
 
-    size_t page_i;
-    size_t pause;
+    // Blocking pages in RAM with VirtualLock
 
-    VirtualLock(addr, PAGE_SIZE * PAGE_NUM);
-    for(size_t gi = 0; gi < N_TIMES; ++gi)
+    VirtualLock(aMappedFile, PAGE_SIZE * PAGE_NUMBER);
+    for(size_t gi = 0; gi < N_TIMES; gi++)
     {
-        #if RND_CHOOSE == 1
-        page_i = rand() % PAGE_NUM;
-        #else
-        page_i = -1;
-        #endif
+        // Page choosing
 
-        //===============LOG_BEGIN_WAIT===============
-        logFile.log(1, prID, page_i, true, -1); // RW CHANGE = {true, false}
-        //===============LOG_BEGIN_WAIT===============
+        processPage = rand() % PAGE_NUMBER; // rand
+        //processPage = -1; // 1st free
 
-        #if RND_CHOOSE == 1
-        WaitForSingleObject(mInputOutput[page_i], INFINITE);
-        //Если неудачно, то залозинить это и выйти... //too much close and free=/
-        #else
-        page_i = WaitForMultipleObjects(PAGE_NUM, mInputOutput, FALSE, INFINITE);
-        //Если неудачно, то залозинить это и выйти... //too much close and free=/
-        #endif
+        // LogFile starting
 
-        unsigned mem_src = *((unsigned*)((char*)addr + PAGE_SIZE*page_i)); /* RW CHANGE = {unsigned mem_src = *((unsigned*)((char*)addr + PAGE_SIZE*page_i));, 
-                                                                   unsigned mem_src = rand() % 256; *((unsigned*)((char*)addr + PAGE_SIZE*page_i)) = mem_src; }*/
+        logFile.log(1, processID, processPage, true, -1);
 
-        //===============LOG_READING/WRITING===============
-        logFile.log(2, prID, page_i, true, mem_src); // RW CHANGE = {true, false}
-        //===============LOG_READING/WRITING===============
+        // Catching mutex
+
+        WaitForSingleObject(mInputOutput[processPage], INFINITE); // rand
+        //processPage = WaitForMultipleObjects(PAGE_NUMBER, mInputOutput, FALSE, INFINITE); // 1st free
+
+        // Choosing random place
+
+        unsigned mem_src = *((unsigned*)((char*)aMappedFile + PAGE_SIZE*processPage));
+
+        // LogFile accessing or changing
+
+        logFile.log(2, processID, processPage, true, mem_src);
         pause = (rand() % 1001) + 500;
-
         Sleep((DWORD)pause);
 
-        //===============LOG_RELEASING===============
-        logFile.log(3, prID, page_i, true, -1); // RW CHANGE = {true, false}
-        //===============LOG_RELEASING===============
+        logFile.log(3, processID, processPage, true, -1);
 
-        ReleaseMutex(mInputOutput[page_i]);
+        // Releasing mutex
+
+        ReleaseMutex(mInputOutput[processPage]);
+
+        // Waiting
 
         Sleep(10);
     }
-    //===============LOG_FINISHED===============
+
+    // All logs commonly writing in the file (AND start sycnhronizing)
+
     WaitForSingleObject(mLogFile, INFINITE);
-    logFile.log("reader " + std::to_string(prID) + " finished. "); // RW CHANGE = {reader, writer}
-    logFile.flush();
+    logFile.log("READER " + std::to_string(processID) + " has been ended.");
+    logFile.flush(); // synchronizing the buffer
     ReleaseMutex(mLogFile);
-    //===============LOG_FINISHED===============
 
-    VirtualUnlock(addr, PAGE_SIZE * PAGE_NUM);
+    // ... AND end synchronizing
 
-    //===============Cleaning===============
-    for(size_t i = 0; i < PAGE_NUM; ++i)
+    // Unlocking page sizes
+
+    VirtualUnlock(aMappedFile, PAGE_SIZE * PAGE_NUMBER);
+
+    // Cleaning and freeing
+
+    for (int i = 0; i < PAGE_NUMBER; ++i)
     {
         CloseHandle(mInputOutput[i]);
     }
     CloseHandle(mLogFile);
-
     CloseHandle(hMappedFile);
-    UnmapViewOfFile(addr);
-
-    //===============Cleaning===============
+    UnmapViewOfFile(aMappedFile);
 
     return 0;
 }
 
-size_t LogFile::getTime()
+size_t LogFile::getTime() // getting time method
 {
     size_t milisecFromStart = 0;
-    #if IOcount == 1
-    time_t endTime;
-    time(&endTime);
-    milisecFromStart = (size_t)(difftime(endTime, startTime) * 1000 + 0.5);
-    #else
+    //time_t endTime; // iocnt1
+    //time(&endTime); // iocnt1
+    //milisecFromStart = (size_t)(difftime(endTime, startTime) * 1000 + 0.5); // iocnt1
     clock_t endTime = clock();
     milisecFromStart = (size_t)(((double)(endTime - startTime) / CLOCKS_PER_SEC) * 1000 + 0.5);
-    #endif
     return milisecFromStart;
 }
 
-/*
-type:
-1 - начало  ожидания,  
-2 - запись  или  чтение, 
-3 - переход  к освобождению
-r_or_w:
-true = reader
-flase = writer
-*/
-void LogFile::log(int type, size_t id, long long pageNum, bool r_or_w, int what = -1)
+void LogFile::log(int type, size_t id, long long pageNum, bool isRead, int what = -1) // isRead true -- reader, false -- writer
 {
-    string reason;
-    switch(type)
+    string localState;
+    string localType;
+    string ID = std::to_string(id);
+    switch (type)
     {
         case 1:
-            reason = "begin wait";
+            localState = "begin wait";
             break;
         case 2:
-            if(r_or_w)
-                reason = "reading";
+            if (isRead == true)
+            {
+                localState = "reading";
+            }
             else
-                reason = "writing";
+            {
+                localState = "writing";
+            }
             break;
         case 3:
-            reason = "releasing";
+            localState = "releasing";
             break;
         default:
-            reason = "Failed successfully=/";
+            localState = "failed";
             break;
     }
 
-    string ID = std::to_string(id);
-
-    string rw = "";
-    if(r_or_w)
+    if (isRead == true)
     {
-        rw = "reader";
+        localType = "reader";
     }
     else
     {
-        rw = "writer";
+        localType = "writer";
     }
 
-    size_t milisecFromStart = getTime();
-    string time = std::to_string(milisecFromStart);
-    
-    string page = pageNum==-1 ? string("the first one released") : std::to_string(pageNum);
-
-    string swhat = what==-1 ? "" : " byte " + std::to_string(what) + (r_or_w==true?" from":" to");
-
-    log(  rw + " " + ID + " " + reason + swhat + " page " + page + " (time = " + time + " ms). " );
+    size_t milisecFromStart = getTime(); // checking the time
+    string time = std::to_string(milisecFromStart); // translating the time to the string
+    string page = pageNum == -1 ? string("the first one released") : std::to_string(pageNum);
+    string swhat = what == -1 ? "" : " byte " + std::to_string(what) + (isRead == true ? " from" : " to");
+    log(localType + " " + ID + " " + localState + swhat + " page " + page + " (time = " + time + " ms). ");
 }
 
-void LogFile::log(string msg)
+void LogFile::log (string localMessage) // logging the message
 {
-    (*ss) << msg << endl;
+    (*localStream) << localMessage << "\n";
 }
 
-void LogFile::flush()
+void LogFile::flush () // flushing the message
 {
-    file << (*ss).str() << endl;
-    file.flush();
-    (*ss).str("");
+    file << (*localStream).str() << "\n"; // write the message
+    file.flush(); // flushing
+    (*localStream).str(""); // setting the buffer to "null"
 }
 
-LogFile::LogFile(string fileName)
+LogFile::LogFile (string fileName) // constructor
 {
     this->fileName = fileName;
-    ss = new ostringstream();
+    localStream = new ostringstream();
     file.open(fileName, std::fstream::app | std::fstream::out);
-    #if IOcount == 1
-    time(&startTime);
-    #else
+    //time(&startTime); // iocnt1
     startTime = clock();
-    #endif
 }
 
-LogFile::~LogFile()
+LogFile::~LogFile () // destructor
 {
-    delete ss;
+    delete localStream;
     file.close();
 }
